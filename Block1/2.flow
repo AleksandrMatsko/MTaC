@@ -1,0 +1,8 @@
+import runtime;
+
+main () {
+    numbers : [int] = [1, 2, 3, 25];
+    start_val : int = 1;
+    sum : int = fold(numbers, start_val, \x, y -> x + y);
+    println(sum);
+}

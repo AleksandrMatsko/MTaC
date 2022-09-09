@@ -1,0 +1,54 @@
+import runtime;
+
+fibonacci : (n : int) -> [int];
+
+fibonacci(n) {
+    if (n < 0) {
+        [-1];
+    }
+    else if (n == 0) {
+        [0];
+    }
+    else if (n == 1) {
+        [0, 1];
+    }
+    else {
+        prev : [int] = fibonacci(n - 1);
+        concat(prev, [prev[n - 1] + fibonacci(n - 2)[n - 2]]);
+    }
+
+}
+
+fibonacciTail : (n : int, array : [int]) -> [int];
+
+fibonacciTail(n, array) {
+    if (n <= 1) {
+        array;
+    }
+    else {
+        fibonacciTail(n - 1, arrayPush(array, array[length(array) - 1] 
+            + array[length(array) - 2]));
+    }
+}
+
+fibonacciRef : (n : int, ref_array : ref [int]) -> void;
+
+fibonacciRef(n, ref_array) {
+    if (n <= 1) {}
+    else {
+        refArrayPush(ref_array, ^ref_array[length(^ref_array) - 1] 
+            + ^ref_array[length(^ref_array) - 2]);
+        fibonacciRef(n - 1, ref_array);
+    }
+
+}
+
+
+
+main () {
+    println(fibonacci(7));
+    println(fibonacciTail(7, [0, 1]));
+    ref_array : ref [int] = ref [0, 1];
+    fibonacciRef(7, ref_array);
+    println(ref_array);
+}
