@@ -1,0 +1,55 @@
+import lingo/pegcode/driver;
+
+export {
+        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int;
+        AddExp : (arg1 : Exp, arg2 : Exp);
+        MulExp : (arg1 : Exp, arg2 : Exp);
+        SubExp : (arg1 : Exp, arg2 : Exp);
+        DivExp : (arg1 : Exp, arg2 : Exp);
+        ModExp : (arg1 : Exp, arg2 : Exp);
+        Int : (i : int);
+        
+
+        s2exp(str_exp : string) -> Exp;
+        exp2s(exp : Exp) -> string;
+        exp2s_polish(exp : Exp) -> string;
+}
+        
+s2exp(str_exp : string) -> Exp {
+        grammar = "#include MTaC/Block2/grammar.lingo";
+        parsic(compilePegGrammar(grammar), str_exp, defaultPegActions);
+}
+
+exp2s(exp : Exp) -> string {
+        switch (exp) {
+                AddExp(arg1, arg2): 
+                        concatStrings(["(", exp2s(arg1), " + ", exp2s(arg2), ")"]);
+                MulExp(arg1, arg2): 
+                        concatStrings(["(", exp2s(arg1), " * ", exp2s(arg2), ")"]);
+                SubExp(arg1, arg2):
+                        concatStrings(["(", exp2s(arg1), " - ", exp2s(arg2), ")"]);
+                DivExp(arg1, arg2):
+                        concatStrings(["(", exp2s(arg1), " / ", exp2s(arg2), ")"]);
+                ModExp(arg1, arg2):
+                        concatStrings(["(", exp2s(arg1), " % ", exp2s(arg2), ")"]);
+                Int(i):
+                        i2s(i);
+        }
+}
+
+exp2s_polish(exp : Exp) -> string {
+        switch (exp) {
+                AddExp(arg1, arg2): 
+                        concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " +"]);
+                MulExp(arg1, arg2): 
+                        concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " *"]);
+                SubExp(arg1, arg2): 
+                        concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " -"]);
+                DivExp(arg1, arg2): 
+                        concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " /"]);
+                ModExp(arg1, arg2): 
+                        concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " %"]);
+                Int(i):
+                        i2s(i);
+        }
+}

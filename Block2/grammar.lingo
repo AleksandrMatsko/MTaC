@@ -1,0 +1,15 @@
+exp = ops | nums;
+
+ops = add | mul | sub | div | mod;
+nums = int;
+
+add = ws "(" ws exp:arg1 ws "+" ws exp:arg2 ws ")" ws {AddExp(:arg1, :arg2)};
+mul = ws "(" ws exp:arg1 ws "*" ws exp:arg2 ws ")" ws {MulExp(:arg1, :arg2)};
+sub = ws "(" ws exp:arg1 ws "-" ws exp:arg2 ws ")" ws {SubExp(:arg1, :arg2)};
+div = ws "(" ws exp:arg1 ws "/" ws exp:arg2 ws ")" ws {DivExp(:arg1, :arg2)};
+mod = ws "(" ws exp:arg1 ws "%" ws exp:arg2 ws ")" ws {ModExp(:arg1, :arg2)};
+
+int = ws digit+$d ws {Int(s2i($d))};
+digit = '0'-'9';
+ws = (" " | "\t" | "\n")*;
+letter = 'a'-'z';
