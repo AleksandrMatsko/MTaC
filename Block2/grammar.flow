@@ -1,13 +1,14 @@
 import lingo/pegcode/driver;
 
 export {
-        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int;
+        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double;
         AddExp : (arg1 : Exp, arg2 : Exp);
         MulExp : (arg1 : Exp, arg2 : Exp);
         SubExp : (arg1 : Exp, arg2 : Exp);
         DivExp : (arg1 : Exp, arg2 : Exp);
         ModExp : (arg1 : Exp, arg2 : Exp);
         Int : (i : int);
+        Double : (d : double);
         
 
         s2exp(str_exp : string) -> Exp;
@@ -34,6 +35,8 @@ exp2s(exp : Exp) -> string {
                         concatStrings(["(", exp2s(arg1), " % ", exp2s(arg2), ")"]);
                 Int(i):
                         i2s(i);
+                Double(d):
+                        d2s(d);
         }
 }
 
@@ -51,5 +54,7 @@ exp2s_polish(exp : Exp) -> string {
                         concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " %"]);
                 Int(i):
                         i2s(i);
+                Double(d):
+                        d2s(d);
         }
 }

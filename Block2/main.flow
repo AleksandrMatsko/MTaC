@@ -7,6 +7,5 @@ main() {
     println(s2exp(str_exp));
     println(exp2s(s2exp(str_exp)));
     println(exp2s_polish(s2exp(str_exp)));
-    println(calcExp(s2exp(str_exp)));
-    
+    println(calcExp(s2exp(str_exp)));   
 }

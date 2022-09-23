@@ -1,16 +1,17 @@
 import MTaC/Block2/grammar;
 
 export {
-    calcExp(exp : Exp) -> int;
+    calcExp(exp : Exp) -> double;
 }
 
-calcExp(exp : Exp) -> int {
+calcExp(exp : Exp) -> double {
     switch (exp) {
         AddExp(arg1, arg2): calcExp(arg1) + calcExp(arg2);
         MulExp(arg1, arg2): calcExp(arg1) * calcExp(arg2);
         SubExp(arg1, arg2): calcExp(arg1) - calcExp(arg2);
         DivExp(arg1, arg2): calcExp(arg1) / calcExp(arg2);
         ModExp(arg1, arg2): calcExp(arg1) % calcExp(arg2);
-        Int(i): i;
+        Int(i): i2d(i);
+        Double(d): d;
     }
 }
