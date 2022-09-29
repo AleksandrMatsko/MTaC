@@ -9,7 +9,6 @@ export {
         ModExp : (arg1 : Exp, arg2 : Exp);
         Int : (i : int);
         Double : (d : double);
-        
 
         s2exp(str_exp : string) -> Exp;
         exp2s(exp : Exp) -> string;
