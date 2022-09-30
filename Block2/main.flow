@@ -3,9 +3,10 @@ import sys/system;
 
 
 main() {
-    str_exp : string = "{a = (1 + 2)} {(a + -b)} {b = (25 / 5)}";//readUntil("\n");
+    str_exp : string = "{a = (1 + b)} {(a + -b)} {b = (25 / 5)} {(a * b)} {(-2^(a + b))}";//readUntil("\n");
     println(s2exps(str_exp));
     println(exps2s(s2exps(str_exp)));
     println(exps2s_polish(s2exps(str_exp)));
+    println(calcExps(s2exps(str_exp)));
     quit(0);
 }

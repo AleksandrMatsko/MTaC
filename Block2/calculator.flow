@@ -1,29 +1,67 @@
 import MTaC/Block2/grammar;
 import ds/tree;
+import math/math;
 
-/*export {
-    var_tree : Tree<string, Exp> = makeTree();
+export {
+    calcExps(exps : [Exp]) -> [double];
 
-    calcExp(exp : Exp) -> double;
 }
 
-calcExp(exp : Exp) -> double {
+calcExp(exp : Exp, var_tree : Tree<string, Exp>) -> double;
+
+calcExps(exps : [Exp]) -> [double] {
+    pairsVarVal : ref [Pair<string, Exp>] = ref [];
+    no_defines : ref [Exp] = ref [];
+    fori(0, length(exps) - 1, \i -> 
+        switch (exps[i]) {
+            VarDefine(name, val): refArrayPush(pairsVarVal, Pair(name, val));
+            Exp(): refArrayPush(no_defines, exps[i]); 
+        }
+    );
+    var_tree : Tree<string, Exp> = setTreeValues(makeTree(), ^pairsVarVal);
+    res : ref [double] = ref [];
+    fori(0, length(^no_defines) - 1, \i -> refArrayPush(res, calcExp(^no_defines[i], var_tree)));
+    ^res;
+}
+
+calcExp(exp : Exp, var_tree : Tree<string, Exp>) -> double {
     switch (exp) {
-        AddExp(arg1, arg2): calcExp(arg1) + calcExp(arg2);
-        MulExp(arg1, arg2): calcExp(arg1) * calcExp(arg2);
-        SubExp(arg1, arg2): calcExp(arg1) - calcExp(arg2);
-        DivExp(arg1, arg2): calcExp(arg1) / {val : double = calcExp(arg2);
+        AddExp(arg1, arg2): calcExp(arg1, var_tree) + calcExp(arg2, var_tree);
+        MulExp(arg1, arg2): calcExp(arg1, var_tree) * calcExp(arg2, var_tree);
+        SubExp(arg1, arg2): calcExp(arg1, var_tree) - calcExp(arg2, var_tree);
+        DivExp(arg1, arg2): calcExp(arg1, var_tree) / {val : double = calcExp(arg2, var_tree);
             if (val == 0.0) {
                 println("division by zero");
                 quit(1);
-                0.0;
+                s2d("nan");
             }
             else {
                 val;
             }
         };
-        ModExp(arg1, arg2): calcExp(arg1) % calcExp(arg2);
+        ModExp(arg1, arg2): calcExp(arg1, var_tree) % calcExp(arg2, var_tree);
         Int(i): i2d(i);
         Double(d): d;
+        Var(v): {
+            search_res : Exp = lookupTreeDef(var_tree, v, Double(s2d("nan")));
+            calcExp(search_res, var_tree);
+        };
+        VarDefine(name, val): s2d("nan");
+        DegExp(arg1, arg2): {
+            res1 : double = calcExp(arg1, var_tree);
+            res2 : double = calcExp(arg2, var_tree);
+            if (res1 == 0.0 && res2 < 0.0) {
+                println("0 in negative degree");
+                s2d("nan");
+            }
+            else if (res1 < 0.0 && res2 % 2.0 != 0.0 && res2 > -1.0 && res2 < 1.0) {
+                println("negative num in not even degree");
+                s2d("nan");
+            }
+            else {
+                dpow(res1, res2);
+            }
+            //dpow(res1, res2);
+        }
     }
-}*/
+}

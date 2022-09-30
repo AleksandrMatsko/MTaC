@@ -1,7 +1,7 @@
 import lingo/pegcode/driver;
 
 export {
-        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double, Var, VarDefine;
+        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double, Var, VarDefine, DegExp;
         AddExp : (arg1 : Exp, arg2 : Exp);
         MulExp : (arg1 : Exp, arg2 : Exp);
         SubExp : (arg1 : Exp, arg2 : Exp);
@@ -11,6 +11,7 @@ export {
         Double : (d : double);
         Var(v : string);
         VarDefine : (name : string, val : Exp);
+        DegExp : (arg1 : Exp, arg2 : Exp);
 
         s2exps(str_rec : string) -> [Exp];
         exps2s(exps : [Exp]) -> [string];
@@ -61,6 +62,8 @@ exp2s(exp : Exp) -> string {
                         v;
                 VarDefine(name, val):
                         concatStrings([name, " = ", exp2s(val)]);
+                DegExp(arg1, arg2):
+                        concatStrings([exp2s(arg1), "^", exp2s(arg2)]);
         }
 }
 
@@ -91,6 +94,8 @@ exp2s_polish(exp : Exp) -> string {
                 Var(v):
                         v;
                 VarDefine(name, val):
-                        concatStrings([name, " = ", exp2s_polish(val)]);       
+                        concatStrings([name, " = ", exp2s_polish(val)]);
+                DegExp(arg1, arg2):
+                        concatStrings([exp2s_polish(arg1), exp2s_polish(arg2), "^"]);       
         }
 }

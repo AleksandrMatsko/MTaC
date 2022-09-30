@@ -13,7 +13,7 @@ varName = (letter+ digit*);
 
 
 
-ops = add | mul | sub | div | mod;
+ops = add | mul | sub | div | mod | deg;
 nums = negDouble | double | negInt | int | negVar | var;
 
 add = ws "(" ws exp:arg1 ws "+" ws exp:arg2 ws ")" ws {AddExp(:arg1, :arg2)};
@@ -21,6 +21,7 @@ mul = ws "(" ws exp:arg1 ws "*" ws exp:arg2 ws ")" ws {MulExp(:arg1, :arg2)};
 sub = ws "(" ws exp:arg1 ws "-" ws exp:arg2 ws ")" ws {SubExp(:arg1, :arg2)};
 div = ws "(" ws exp:arg1 ws "/" ws exp:arg2 ws ")" ws {DivExp(:arg1, :arg2)};
 mod = ws "(" ws exp:arg1 ws "%" ws exp:arg2 ws ")" ws {ModExp(:arg1, :arg2)};
+deg = ws "(" ws exp:arg1 "^" exp:arg2 ws ")" ws {DegExp(:arg1, :arg2)};
 
 
 negDouble = ws ("-" numDoub)$d ws {Double(s2d($d))};
