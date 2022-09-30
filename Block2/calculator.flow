@@ -1,7 +1,7 @@
 import MTaC/Block2/grammar;
 import ds/tree;
 
-export {
+/*export {
     var_tree : Tree<string, Exp> = makeTree();
 
     calcExp(exp : Exp) -> double;
@@ -26,4 +26,4 @@ calcExp(exp : Exp) -> double {
         Int(i): i2d(i);
         Double(d): d;
     }
-}
+}*/

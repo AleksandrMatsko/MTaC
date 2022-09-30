@@ -1,7 +1,20 @@
+//record = (varDefine | negVar | var | exp)+$r {Record($r)};
+
+//record = ws "{" ws (exp | varDefine)$r ws "}" ws {Record($r)};
+
+record = varDefine | exp;
 exp = ops | nums;
 
+varDefine =  ws varName$name ws "=" ws exp:val ws {VarDefine($name, :val)};
+
+negVar = ws "-" varName$v ws {MulExp(Double(s2d("-1.0")), Var($v))};
+var = ws varName$v ws {Var($v)}; 
+varName = (letter+ digit*);
+
+
+
 ops = add | mul | sub | div | mod;
-nums = negDouble | double | negInt | int;
+nums = negDouble | double | negInt | int | negVar | var;
 
 add = ws "(" ws exp:arg1 ws "+" ws exp:arg2 ws ")" ws {AddExp(:arg1, :arg2)};
 mul = ws "(" ws exp:arg1 ws "*" ws exp:arg2 ws ")" ws {MulExp(:arg1, :arg2)};
@@ -18,5 +31,5 @@ int = ws digit+$i ws {Int(s2i($i))};
 numDoub = digit+ doubleSep digit+;
 doubleSep = ".";
 digit = '0'-'9';
-ws = (" " | "\t" | "\n")*;
+ws = (" " | "\t" | "\n" | "\r")*;
 letter = 'a'-'z';

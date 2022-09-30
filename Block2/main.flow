@@ -3,10 +3,9 @@ import sys/system;
 
 
 main() {
-    str_exp : string = "(1 / 0)";//readUntil("\n");
-    println(s2exp(str_exp));
-    println(exp2s(s2exp(str_exp)));
-    println(exp2s_polish(s2exp(str_exp)));
-    println(calcExp(s2exp(str_exp)));
+    str_exp : string = "{a = (1 + 2)} {(a + -b)} {b = (25 / 5)}";//readUntil("\n");
+    println(s2exps(str_exp));
+    println(exps2s(s2exps(str_exp)));
+    println(exps2s_polish(s2exps(str_exp)));
     quit(0);
 }

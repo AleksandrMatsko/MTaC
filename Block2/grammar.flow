@@ -1,7 +1,7 @@
 import lingo/pegcode/driver;
 
 export {
-        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double;
+        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double, Var, VarDefine;
         AddExp : (arg1 : Exp, arg2 : Exp);
         MulExp : (arg1 : Exp, arg2 : Exp);
         SubExp : (arg1 : Exp, arg2 : Exp);
@@ -9,15 +9,36 @@ export {
         ModExp : (arg1 : Exp, arg2 : Exp);
         Int : (i : int);
         Double : (d : double);
+        Var(v : string);
+        VarDefine : (name : string, val : Exp);
 
-        s2exp(str_exp : string) -> Exp;
-        exp2s(exp : Exp) -> string;
-        exp2s_polish(exp : Exp) -> string;
+        s2exps(str_rec : string) -> [Exp];
+        exps2s(exps : [Exp]) -> [string];
+        exps2s_polish(exps : [Exp]) -> [string];
 }
+
+s2exp(str_exp : string) -> Exp;
+exp2s(exp : Exp) -> string;
+exp2s_polish(exp : Exp) -> string;
+
+s2exps(str_rec : string) -> [Exp] {
+        str_no_ws : string = strReplaces(str_rec, [" ", "", "\t", "", "\n", "", "\r"]);
+        parts : [string] = strSplit2WithoutLeave(str_no_ws, ["{", "}"]);
+        records : ref [Exp] = ref [];
+        fori(0, length(parts) - 1, \i -> refArrayPush(records, s2exp(parts[i])));
+        ^records;
         
+}
+    
 s2exp(str_exp : string) -> Exp {
         grammar = "#include MTaC/Block2/grammar.lingo";
         parsic(compilePegGrammar(grammar), str_exp, defaultPegActions);
+}
+
+exps2s(exps : [Exp]) -> [string] {
+        str_exps : ref [string] = ref [];
+        fori(0, length(exps) - 1, \i -> refArrayPush(str_exps, exp2s(exps[i])));
+        ^str_exps;
 }
 
 exp2s(exp : Exp) -> string {
@@ -36,8 +57,20 @@ exp2s(exp : Exp) -> string {
                         i2s(i);
                 Double(d):
                         d2s(d);
+                Var(v):
+                        v;
+                VarDefine(name, val):
+                        concatStrings([name, " = ", exp2s(val)]);
         }
 }
+
+
+exps2s_polish(exps : [Exp]) -> [string] {
+        str_exps : ref [string] = ref [];
+        fori(0, length(exps) - 1, \i -> refArrayPush(str_exps, exp2s_polish(exps[i])));
+        ^str_exps;
+}
+
 
 exp2s_polish(exp : Exp) -> string {
         switch (exp) {
@@ -55,5 +88,9 @@ exp2s_polish(exp : Exp) -> string {
                         i2s(i);
                 Double(d):
                         d2s(d);
+                Var(v):
+                        v;
+                VarDefine(name, val):
+                        concatStrings([name, " = ", exp2s_polish(val)]);       
         }
 }
