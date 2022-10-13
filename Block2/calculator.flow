@@ -1,4 +1,5 @@
 import MTaC/Block2/grammar;
+import MTaC/Block2/derivative;
 import ds/tree;
 import math/math;
 
@@ -46,22 +47,31 @@ calcExp(exp : Exp, var_tree : Tree<string, Exp>) -> double {
             search_res : Exp = lookupTreeDef(var_tree, v, Double(s2d("nan")));
             calcExp(search_res, var_tree);
         };
-        VarDefine(name, val): s2d("nan");
+        VarDefine(name, val): {
+            println("Error: invalid operation in calculating block");
+            s2d("nan");
+        }
         DegExp(arg1, arg2): {
             res1 : double = calcExp(arg1, var_tree);
             res2 : double = calcExp(arg2, var_tree);
             if (res1 == 0.0 && res2 < 0.0) {
-                println("0 in negative degree");
+                println("Error: 0 in negative degree");
                 s2d("nan");
             }
             else if (res1 < 0.0 && res2 % 2.0 != 0.0 && res2 > -1.0 && res2 < 1.0) {
-                println("negative num in not even degree");
+                println("Error: negative num in not even |degree| < 1 ");
                 s2d("nan");
             }
             else {
                 dpow(res1, res2);
             }
-            //dpow(res1, res2);
         }
+        DerivativeExp(arg, v): {
+                der_exp : Exp = derivative2exp(arg, v, var_tree);
+                //println(der_exp);
+                calcExp(der_exp, var_tree);
+            }
+        LNExp(arg): log(calcExp(arg, var_tree));
     }
 }
+

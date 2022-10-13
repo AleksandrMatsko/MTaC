@@ -1,0 +1,85 @@
+import MTaC/Block2/grammar;
+
+export {
+    simplifyExp(exp : Exp) -> Exp;
+    simplifyExps(exps : [Exp]) -> [Exp];
+}
+simplifyExpOneStep(exp : Exp) -> Exp;
+
+simplifyExps(exps : [Exp]) -> [Exp] {
+    map(exps, \e -> simplifyExp(e));
+}
+
+simplifyExp(exp : Exp) -> Exp {
+    res_simplifier : Exp = simplifyExp(exp);
+    if (res_simplifier == exp) {
+        exp;
+    }
+    else {
+        simplifyExp(res_simplifier);
+    }
+}
+
+simplifyExpOneStep(exp : Exp) -> Exp {
+    switch(exp) {
+        AddExp(arg1, arg2): {
+            if (arg1 == Double(0.0) || arg1 == Int(0)) {
+                simplifyExp(arg2);
+            }
+            else if (arg2 == Double(0.0) || arg2 == Int(0)) {
+                simplifyExp(arg1);
+            }
+            else {
+                AddExp(simplifyExp(arg1), simplifyExp(arg2));
+            }
+        }
+        SubExp(arg1, arg2): {
+            if (arg1 == Double(0.0) || arg1 == Int(0)) {
+                MulExp(simplifyExp(arg2), Double(-1.0));
+            }
+            else if (arg2 == Double(0.0) || arg2 == Int(0)) {
+                simplifyExp(arg1);
+            }
+            else {
+                SubExp(simplifyExp(arg1), arg2);
+            }
+        }
+        MulExp(arg1, arg2): {
+            if (arg1 == Double(1.0) || arg1 == Int(1)) {
+                simplifyExp(arg2);
+            }
+            else if (arg2 == Double(1.0) || arg2 == Int(1)) {
+                simplifyExp(arg1);
+            }
+            else {
+                MulExp(simplifyExp(arg1), simplifyExp(arg2));
+            }
+        }
+        DivExp(arg1, arg2): {
+            if (arg2 == Double(1.0) || arg2 == Int(1)) {
+                simplifyExp(arg1);
+            }
+            else if (arg1 == arg2 && arg1 != Double(0.0) && arg1 != Int(0)) {
+                Double(1.0);
+            }
+            else {
+                DivExp(simplifyExp(arg1), simplifyExp(arg2));
+            }
+        }
+        ModExp(arg1, arg2): ModExp(arg1, arg2);
+        DegExp(arg1, arg2): {
+            if (arg2 == Double(1.0) || arg2 == Int(1)) {
+                simplifyExp(arg1);
+            }
+            else {
+                DegExp(simplifyExp(arg1), simplifyExp(arg2));
+            }
+        }
+        VarDefine(name, val): VarDefine(name, simplifyExp(val));
+        Var(v): Var(v);
+        Int(i): Int(i);
+        Double(d): Double(d);
+        LNExp(arg): LNExp(simplifyExp(arg));
+        DerivativeExp(arg, v): DerivativeExp(simplifyExp(arg), v);
+    }
+}

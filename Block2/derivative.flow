@@ -1,0 +1,118 @@
+import MTaC/Block2/simplifier;
+
+export {
+    derivative2exp(arg : Exp, var : string, var_tree : Tree<string, Exp>) -> Exp;
+}
+
+containVar(arg : Exp, var : string, var_tree : Tree<string, Exp>) -> bool;
+
+derivative2exp(exp : Exp, var : string, var_tree : Tree<string, Exp>) -> Exp {
+    switch (exp) {
+        AddExp(arg1, arg2): AddExp(derivative2exp(arg1, var, var_tree), derivative2exp(arg2, var, var_tree));
+        SubExp(arg1, arg2): SubExp(derivative2exp(arg1, var, var_tree), derivative2exp(arg2, var, var_tree));
+        MulExp(arg1, arg2): {
+            var_in_1 : bool = containVar(arg1, var, var_tree);
+            var_in_2 : bool = containVar(arg2, var, var_tree);
+            if (var_in_1 && var_in_2) {
+                AddExp(MulExp(arg2, derivative2exp(arg1, var, var_tree)), MulExp(arg1, derivative2exp(arg2, var, var_tree)));
+            }
+            else if (!var_in_1 && var_in_2) {
+                MulExp(arg1, derivative2exp(arg2, var, var_tree));
+            }
+            else if (var_in_1 && !var_in_2) {
+                MulExp(arg2, derivative2exp(arg1, var, var_tree));
+            }
+            else {
+                Double(0.0);
+            }
+        }
+        DivExp(arg1, arg2): {
+            var_in_1 : bool = containVar(arg1, var, var_tree);
+            var_in_2 : bool = containVar(arg2, var, var_tree);
+            if (var_in_1 && var_in_2) {
+                DivExp(
+                    SubExp(
+                        MulExp(arg2, derivative2exp(arg1, var, var_tree)), 
+                        MulExp(arg1, derivative2exp(arg2, var, var_tree))
+                    ), 
+                    DegExp(arg2, Double(2.0))
+                );
+            }
+            else if (!var_in_1 && var_in_2) {
+                MulExp(DivExp(MulExp(arg1, Double(-1.0)), DegExp(arg2, Double(2.0))), derivative2exp(arg2, var, var_tree));
+            }
+            else if (var_in_1 && !var_in_2) {
+                DivExp(derivative2exp(arg1, var, var_tree), arg2);
+            }
+            else {
+                Double(0.0);
+            }
+        }
+        ModExp(arg1, arg2): {
+            println("Error: derivative from mod (%)");
+            Double(s2d("nan"));
+        }
+        Int(i): Double(0.0);
+        Double(d): Double(0.0);
+        Var(v): {
+            if (v == var) {
+                Double(1.0);
+            }
+            else {
+                derivative2exp(lookupTreeDef(var_tree, v, Double(0.0)), var, var_tree);
+            }
+        }
+        VarDefine(name, val): {
+            println("Error: cannot use derivative for var definition");
+            Double(s2d("nan"));
+        }
+        DegExp(arg1, arg2): {
+            var_in_1 : bool = containVar(arg1, var, var_tree);
+            var_in_2 : bool = containVar(arg2, var, var_tree);
+            if (var_in_1 && var_in_2) {
+                MulExp(
+                    DegExp(arg1, arg2), 
+                    AddExp(
+                        MulExp(derivative2exp(arg2, var, var_tree), LNExp(arg1)), 
+                        MulExp(arg2, derivative2exp(LNExp(arg1), var, var_tree))
+                    )
+                );
+            }
+            else if (!var_in_1 && var_in_2) {
+                MulExp(MulExp(DegExp(arg1, arg2), LNExp(arg1)), derivative2exp(arg2, var, var_tree));
+            }
+            else if (var_in_1 && !var_in_2) {
+                MulExp(MulExp(arg2, DegExp(arg1, SubExp(arg2, Double(1.0)))), derivative2exp(arg1, var, var_tree));
+            }
+            else {
+                Double(0.0);
+            }
+        }
+        DerivativeExp(arg, v): derivative2exp(derivative2exp(arg, v, var_tree), var, var_tree);
+        LNExp(arg): DivExp(derivative2exp(arg, var, var_tree), arg);
+    }
+}
+
+containVar(exp : Exp, var : string, var_tree : Tree<string, Exp>) -> bool {
+    switch (exp) {
+        Var(v): {
+            if (v == var) {
+                true;
+            }
+            else {
+                containVar(lookupTreeDef(var_tree, v, Double(0.0)), var, var_tree);
+            }
+        }
+        Int(i): false;
+        Double(d): false;
+        AddExp(arg1, arg2): containVar(arg1, var, var_tree) || containVar(arg2, var, var_tree);
+        DivExp(arg1, arg2): containVar(arg1, var, var_tree) || containVar(arg2, var, var_tree);
+        MulExp(arg1, arg2): containVar(arg1, var, var_tree) || containVar(arg2, var, var_tree);
+        ModExp(arg1, arg2): false;
+        SubExp(arg1, arg2): containVar(arg1, var, var_tree) || containVar(arg2, var, var_tree);
+        DegExp(arg1, arg2): containVar(arg1, var, var_tree) || containVar(arg2, var, var_tree);
+        VarDefine(name, val): false;
+        DerivativeExp(arg, v): {println("Error: invalid order of checking"); false;}
+        LNExp(arg): containVar(arg, var, var_tree);
+    }
+}

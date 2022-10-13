@@ -3,10 +3,13 @@ import sys/system;
 
 
 main() {
-    str_exp : string = "{a = (1 + b)} {(a + -b)} {b = (25 / 5)} {(a * b)} {(-2^(a + b))}";//readUntil("\n");
+    str_exp : string = "{a = (2^5)} {((2 * 1) * 1)} {(a^(1 / 5))} {(dk/d(c) + 2)} {c = 1} {k = d(c ^ 3)/d(c)} {k}";//readUntil("\n");
     println(s2exps(str_exp));
     println(exps2s(s2exps(str_exp)));
     println(exps2s_polish(s2exps(str_exp)));
+    println("===================");
+    //println(exps2s(simplifyExps(s2exps(str_exp))));
+    println("===================");
     println(calcExps(s2exps(str_exp)));
     quit(0);
 }

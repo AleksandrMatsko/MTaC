@@ -1,7 +1,7 @@
 import lingo/pegcode/driver;
 
 export {
-        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double, Var, VarDefine, DegExp;
+        Exp ::= AddExp, MulExp, SubExp, DivExp, ModExp, Int, Double, Var, VarDefine, DegExp, DerivativeExp, LNExp;
         AddExp : (arg1 : Exp, arg2 : Exp);
         MulExp : (arg1 : Exp, arg2 : Exp);
         SubExp : (arg1 : Exp, arg2 : Exp);
@@ -12,10 +12,20 @@ export {
         Var(v : string);
         VarDefine : (name : string, val : Exp);
         DegExp : (arg1 : Exp, arg2 : Exp);
+        DerivativeExp : (arg : Exp, v : string);
+        LNExp : (arg : Exp);
 
         s2exps(str_rec : string) -> [Exp];
         exps2s(exps : [Exp]) -> [string];
         exps2s_polish(exps : [Exp]) -> [string];
+}
+
+lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+lingoGrammar() {
+	onlyOnce(lingoGrammarOp, \ -> {
+		compilePegGrammar("#include MTaC/Block2/grammar.lingo");
+	});
 }
 
 s2exp(str_exp : string) -> Exp;
@@ -32,8 +42,7 @@ s2exps(str_rec : string) -> [Exp] {
 }
     
 s2exp(str_exp : string) -> Exp {
-        grammar = "#include MTaC/Block2/grammar.lingo";
-        parsic(compilePegGrammar(grammar), str_exp, defaultPegActions);
+        parsic(lingoGrammar(), str_exp, defaultPegActions);
 }
 
 exps2s(exps : [Exp]) -> [string] {
@@ -63,7 +72,11 @@ exp2s(exp : Exp) -> string {
                 VarDefine(name, val):
                         concatStrings([name, " = ", exp2s(val)]);
                 DegExp(arg1, arg2):
-                        concatStrings([exp2s(arg1), "^", exp2s(arg2)]);
+                        concatStrings([exp2s(arg1), " ^ ", exp2s(arg2)]);
+                DerivativeExp(arg, var):
+                        concatStrings(["d", exp2s(arg), "/d(", var, ")"]);
+                LNExp(arg):
+                        concatStrings(["LN(", exp2s(arg), ")"]);
         }
 }
 
@@ -96,6 +109,10 @@ exp2s_polish(exp : Exp) -> string {
                 VarDefine(name, val):
                         concatStrings([name, " = ", exp2s_polish(val)]);
                 DegExp(arg1, arg2):
-                        concatStrings([exp2s_polish(arg1), exp2s_polish(arg2), "^"]);       
+                        concatStrings([exp2s_polish(arg1), " ", exp2s_polish(arg2), " ^"]);
+                DerivativeExp(arg, var):
+                        concatStrings(["d(", exp2s_polish(arg), ")/d(", var, ")"]);
+                LNExp(arg):
+                        concatStrings(["LN(", exp2s_polish(arg), ")"]);    
         }
 }
