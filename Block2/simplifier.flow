@@ -5,13 +5,30 @@ export {
     simplifyExps(exps : [Exp]) -> [Exp];
 }
 simplifyExpOneStep(exp : Exp) -> Exp;
+isZero(exp : Exp) -> bool;
+isOne(exp : Exp) -> bool;
+isNegOne(exp : Exp) -> bool;
+
+isZero(exp : Exp) -> bool {
+    exp == Int(0) || exp == Double(0.0);
+}
+
+isOne(exp : Exp) -> bool {
+    exp == Int(1) || exp == Double(1.0);
+}
+
+isNegOne(exp : Exp) -> bool {
+    exp == Int(-1) || exp == Double(-1.0);
+}
 
 simplifyExps(exps : [Exp]) -> [Exp] {
     map(exps, \e -> simplifyExp(e));
 }
 
 simplifyExp(exp : Exp) -> Exp {
-    res_simplifier : Exp = simplifyExp(exp);
+    //println(exp2s(exp));
+    res_simplifier : Exp = simplifyExpOneStep(exp);
+    //println(concatStrings([exp2s(res_simplifier), " ?== ", exp2s(exp)]));
     if (res_simplifier == exp) {
         exp;
     }
@@ -23,63 +40,410 @@ simplifyExp(exp : Exp) -> Exp {
 simplifyExpOneStep(exp : Exp) -> Exp {
     switch(exp) {
         AddExp(arg1, arg2): {
-            if (arg1 == Double(0.0) || arg1 == Int(0)) {
-                simplifyExp(arg2);
+            if (isZero(arg1)) { // 0 + x == x
+                simplifyExpOneStep(arg2);
             }
-            else if (arg2 == Double(0.0) || arg2 == Int(0)) {
-                simplifyExp(arg1);
+            else if (isZero(arg2)) { // x + 0 == x
+                simplifyExpOneStep(arg1);
             }
+            else if (arg1 == arg2) { // x + x == 2 * x
+                MulExp(Double(2.0), simplifyExpOneStep(arg1));
+            }            
             else {
-                AddExp(simplifyExp(arg1), simplifyExp(arg2));
+                arg1_args : [Exp] = getArgsExp(arg1);
+                arg2_args : [Exp] = getArgsExp(arg2);
+                arg1_type : string = getExpType(arg1);
+                arg2_type : string = getExpType(arg2);
+                if (arg1_type == arg2_type && length(arg1_args) == 2) {
+                    if (arg1_type == "*") {
+                        if (arg1_args[0] == arg2_args[0]) { // (x * y) + (x * z) == x * (y + z)
+                            MulExp(simplifyExpOneStep(arg1_args[0]), 
+                                AddExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[1])));
+                        }
+                        else if (arg1_args[0] == arg2_args[1]) { // (x * y) + (z * x) == x * (y + z)
+                            MulExp(simplifyExpOneStep(arg1_args[0]), 
+                                AddExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[0])));
+                        }
+                        else if (arg1_args[1] == arg2_args[0]) { // (y * x) + (x * z) == x * (y + z)
+                            MulExp(simplifyExpOneStep(arg1_args[1]), 
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[1])));
+                        }
+                        else if (arg1_args[1] == arg2_args[1]) { // (y * x) + (z * x) == x * (y + z)
+                            MulExp(simplifyExpOneStep(arg1_args[1]), 
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0])));
+                        }
+                        else {
+                            AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else if (arg1_type == "/") {
+                        if (arg1_args[0] == arg2_args[0]) { // (x / y) + (x / z) == x * (1/y + 1/z)
+                            MulExp(
+                                simplifyExpOneStep(arg1_args[0]), 
+                                AddExp(
+                                    DivExp(Double(1.0), simplifyExpOneStep(arg1_args[1])), 
+                                    DivExp(Double(1.0), simplifyExpOneStep(arg2_args[1]))
+                                )
+                            );
+                        }
+                        else if (arg1_args[1] == arg2_args[1]) { // (y / x) + (z / x) == (y + z) / x
+                            DivExp(
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0])), 
+                                simplifyExpOneStep(arg1_args[1])
+                            );
+                        }
+                        else {
+                            AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else if (arg1_type == "-") {
+                        if (arg1_args[0] == arg2_args[1]) { // (x - y) + (z - x) == z - y 
+                            SubExp(simplifyExpOneStep(arg2_args[0]), simplifyExpOneStep(arg1_args[1]));
+                        }
+                        else if (arg1_args[1] == arg2_args[0]) { // (y - x) + (x - z) == y - z 
+                            SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[1]));
+                        }
+                        else if (arg1_args[0] == arg2_args[0]) { // (x - y) + (x - z) == 2 * x - y - z
+                            SubExp(
+                                SubExp(
+                                    MulExp(Double(2.0), simplifyExpOneStep(arg1_args[0])), 
+                                    simplifyExpOneStep(arg1_args[1])
+                                ), 
+                                simplifyExpOneStep(arg2_args[1])
+                            );
+                        }
+                        else if (arg1_args[1] == arg2_args[1]) { // (y - x) + (z - x) == y + z - 2 * x
+                            SubExp(
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0])), 
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[1]))
+                            );
+                        }
+                        else {
+                            AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else if (arg1_type == "+") {
+                        if (arg1_args[1] == arg2_args[1]) { // (y + x) + (z + x) == y + z + 2 * x
+                            AddExp(
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0])), 
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[1]))
+                            );
+                        }
+                        else if (arg1_args[0] == arg2_args[1]) { // (x + y) + (z + x) == y + z + 2 * x
+                            AddExp(
+                                AddExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[0])), 
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[0]))
+                            );
+                        }
+                        else if (arg1_args[1] == arg2_args[0]) { // (y + x) + (x + z) == y + z + 2 * x
+                            AddExp(
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[1])), 
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[1]))
+                            );
+                        }
+                        else if (arg1_args[0] == arg2_args[0]) { // (x + y) + (x + z) == y + z + 2 * x
+                            AddExp(
+                                AddExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[1])), 
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[0]))
+                            );
+                        }
+                        else {
+                            AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else {
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg1_type == "*") {
+                    if (isNegOne(arg1_args[0])) { // ((-1) * x) + y == y - x
+                        SubExp(simplifyExpOneStep(arg2), simplifyExpOneStep(arg1_args[1]));
+                    }
+                    else if (isNegOne(arg1_args[1])) { // (x * (-1)) + y == y - x
+                        SubExp(simplifyExpOneStep(arg2), simplifyExpOneStep(arg1_args[0]));
+                    }
+                    else {
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg2_type == "*") {
+                    if (isNegOne(arg2_args[0])) { // y + ((-1) * x) == y - x
+                        SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2_args[1]));
+                    }
+                    else if (isNegOne(arg2_args[1])) { // y + (x * (-1)) == y - x
+                        SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2_args[0]));
+                    }
+                    else {
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg1_type == "-" && arg1_args[1] == arg2) { // (x - y) + y == x
+                    simplifyExpOneStep(arg1_args[0]);
+                }
+                else if (arg2_type == "-" && arg2_args[1] == arg1) { // y + (x - y) == x
+                    simplifyExpOneStep(arg2_args[0]);
+                }
+                else {
+                    AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                }
             }
         }
         SubExp(arg1, arg2): {
-            if (arg1 == Double(0.0) || arg1 == Int(0)) {
-                MulExp(simplifyExp(arg2), Double(-1.0));
+            if (isZero(arg2)) { // 0 - x == x * (-1)
+                MulExp(simplifyExpOneStep(arg2), Double(-1.0));
             }
-            else if (arg2 == Double(0.0) || arg2 == Int(0)) {
-                simplifyExp(arg1);
+            else if (isZero(arg1)) { // x - 0 == x
+                simplifyExpOneStep(arg1);
+            }
+            else if (arg1 == arg2) { // x - x == 0
+                Double(0.0);
             }
             else {
-                SubExp(simplifyExp(arg1), arg2);
+                arg1_args : [Exp] = getArgsExp(arg1);
+                arg2_args : [Exp] = getArgsExp(arg2);
+                arg1_type : string = getExpType(arg1);
+                arg2_type : string = getExpType(arg2);
+                if (arg1_type == arg2_type && length(arg1_args) == 2) {
+                    if (arg1_type == "*") {
+                        if (arg1_args[0] == arg2_args[0]) { // (x * y) - (x * z) == x * (y - z)
+                            MulExp(simplifyExpOneStep(arg1_args[0]), 
+                                SubExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[1])));
+                        }
+                        else if (arg1_args[0] == arg2_args[1]) { // (x * y) - (z * x) == x * (y - z)
+                            MulExp(simplifyExpOneStep(arg1_args[0]), 
+                                SubExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[0])));
+                        }
+                        else if (arg1_args[1] == arg2_args[0]) { // (y * x) - (x * z) == x * (y - z)
+                            MulExp(simplifyExpOneStep(arg1_args[1]), 
+                                SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[1])));
+                        }
+                        else if (arg1_args[1] == arg2_args[1]) { // (y * x) + (z * x) == x * (y - z)
+                            MulExp(simplifyExpOneStep(arg1_args[1]), 
+                                SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0])));
+                        }
+                        else {
+                            SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else if (arg1_type == "/") {
+                        if (arg1_args[0] == arg2_args[0]) { // (x / y) - (x / z) == x * (1/y - 1/z)
+                            MulExp(
+                                simplifyExpOneStep(arg1_args[0]), 
+                                SubExp(
+                                    DivExp(Double(1.0), simplifyExpOneStep(arg1_args[1])), 
+                                    DivExp(Double(1.0), simplifyExpOneStep(arg2_args[1]))
+                                )
+                            );
+                        }
+                        else if (arg1_args[1] == arg2_args[1]) { // (y / x) - (z / x) == (y - z) / x
+                            DivExp(
+                                SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0])), 
+                                simplifyExpOneStep(arg1_args[1])
+                            );
+                        }
+                        else {
+                            SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else if (arg1_type == "-") {
+                        if (arg1_args[0] == arg2_args[1]) { // (x - y) - (z - x) == 2 * x + z - y 
+                            AddExp(
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[0])), 
+                                SubExp(simplifyExpOneStep(arg2_args[0]), simplifyExpOneStep(arg1_args[1]))
+                            );
+                        }
+                        else if (arg1_args[1] == arg2_args[0]) { // (y - x) - (x - z) == y + z - 2 * x
+                            SubExp(
+                                AddExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[1])), 
+                                MulExp(Double(2.0), simplifyExpOneStep(arg1_args[1]))
+                            );
+                        }
+                        else if (arg1_args[0] == arg2_args[0]) { // (x - y) - (x - z) == z - y
+                            SubExp(simplifyExpOneStep(arg2_args[1]), simplifyExpOneStep(arg1_args[1]))
+                        }
+                        else if (arg1_args[1] == arg2_args[1]) { // (y - x) - (z - x) == y - z
+                            SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0]));
+                        }
+                        else {
+                            SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else if (arg1_type == "+") {
+                        if (arg1_args[1] == arg2_args[1]) { // (y + x) - (z + x) == y - z
+                            SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[0]));
+                        }
+                        else if (arg1_args[0] == arg2_args[1]) { // (x + y) - (z + x) == y - z
+                            SubExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[0]));
+                        }
+                        else if (arg1_args[1] == arg2_args[0]) { // (y + x) - (x + z) == y - z
+                            SubExp(simplifyExpOneStep(arg1_args[0]), simplifyExpOneStep(arg2_args[1]));
+                        }
+                        else if (arg1_args[0] == arg2_args[0]) { // (x + y) - (x + z) == y - z
+                            SubExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[1]));
+                        }
+                        else {
+                            SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                        }
+                    }
+                    else {
+                        SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg1_type == "*") {
+                    if (isNegOne(arg1_args[0])) { // ((-1) * x) - y == (y + x) * (-1)
+                        MulExp(AddExp(simplifyExpOneStep(arg2), simplifyExpOneStep(arg1_args[1])), Double(-1.0));
+                    }
+                    else if (isNegOne(arg1_args[1])) { // (x * (-1)) - y == (y + x) * (-1)
+                        MulExp(AddExp(simplifyExpOneStep(arg2), simplifyExpOneStep(arg1_args[0])), Double(-1.0));
+                    }
+                    else {
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg2_type == "*") {
+                    if (isNegOne(arg2_args[0])) { // y - ((-1) * x) == y + x
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2_args[1]));
+                    }
+                    else if (isNegOne(arg2_args[1])) { // y - (x * (-1)) == y + x
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2_args[0]));
+                    }
+                    else {
+                        AddExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg1_type == "+") {
+                    if (arg1_args[1] == arg2) { // (x + y) - y == x
+                        simplifyExpOneStep(arg1_args[0]);
+                    }
+                    else if (arg1_args[0] == arg2) { // (y + x) - y == x
+                        simplifyExpOneStep(arg1_args[1]);
+                    }
+                    else {
+                        SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg2_type == "+") { 
+                    if (arg2_args[1] == arg1) { // y - (x + y) == x * (-1)
+                        MulExp(simplifyExpOneStep(arg2_args[0]), Double(-1.0));
+                    }
+                    else if (arg2_args[0] == arg1) { // y - (y + x) == x * (-1)
+                        MulExp(simplifyExpOneStep(arg2_args[0]), Double(-1.0));
+                    }
+                    else {
+                        SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else {
+                    SubExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                }
             }
         }
         MulExp(arg1, arg2): {
-            if (arg1 == Double(1.0) || arg1 == Int(1)) {
-                simplifyExp(arg2);
+            if (isOne(arg1)) { // 1 * x == x
+                simplifyExpOneStep(arg2);
             }
-            else if (arg2 == Double(1.0) || arg2 == Int(1)) {
-                simplifyExp(arg1);
+            else if (isOne(arg2)) { // x * 1 == x
+                simplifyExpOneStep(arg1);
+            }
+            else if (isZero(arg1) || isZero(arg2)) { // 0 * x == x * 0 == 0
+                Double(0.0);
             }
             else {
-                MulExp(simplifyExp(arg1), simplifyExp(arg2));
+                arg1_args : [Exp] = getArgsExp(arg1);
+                arg2_args : [Exp] = getArgsExp(arg2);
+                arg1_type : string = getExpType(arg1);
+                arg2_type : string = getExpType(arg2);
+                if (arg1_type == arg2_type && length(arg1_args) == 2) {
+                    if (arg1_type == "^" && arg1_args[0] == arg2_args[0]) { // x^y * x^z == x^(y + z) 
+                        DegExp(simplifyExpOneStep(arg1_args[0]), AddExp(simplifyExpOneStep(arg1_args[1]), simplifyExpOneStep(arg2_args[1])));
+                    }
+                    else {
+                        MulExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg1_type == "/") {
+                    if (arg1_args[1] == arg2) { // (y / x) * x == y
+                        simplifyExpOneStep(arg1_args[0])
+                    }
+                    else if (isOne(arg1_args[0])) { // (1 / y) * x = x / y
+                        DivExp(simplifyExpOneStep(arg2), simplifyExpOneStep(arg1_args[1]));
+                    }
+                    else {
+                        MulExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg2_type == "/") {
+                    if (arg2_args[1] == arg1 && !isZero(arg1)) { // x * (y / x) == y
+                        simplifyExpOneStep(arg2_args[0])
+                    }
+                    else if (isOne(arg2_args[0])) { // x * (1 / y) == x / y
+                        DivExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2_args[1]));
+                    }
+                    else {
+                        MulExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else {
+                    MulExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                }
             }
         }
         DivExp(arg1, arg2): {
-            if (arg2 == Double(1.0) || arg2 == Int(1)) {
-                simplifyExp(arg1);
+            if (isOne(arg2)) { // x / 1 == x
+                simplifyExpOneStep(arg1);
             }
-            else if (arg1 == arg2 && arg1 != Double(0.0) && arg1 != Int(0)) {
+            else if (arg1 == arg2) { // x / x == 1, x != 0
                 Double(1.0);
             }
+            else if (isZero(arg1)) { // x == 0;
+                Double(0.0);
+            }
             else {
-                DivExp(simplifyExp(arg1), simplifyExp(arg2));
+                arg1_args : [Exp] = getArgsExp(arg1);
+                arg2_args : [Exp] = getArgsExp(arg2);
+                arg1_type : string = getExpType(arg1);
+                arg2_type : string = getExpType(arg2);
+                if (arg1_type == "*") {
+                    if (arg1_args[1] == arg2) { // (y * x) / x == y
+                        simplifyExpOneStep(arg1_args[0])
+                    }
+                    else if (arg1_args[0] == arg2) { // (x * y) / x == y
+                        simplifyExpOneStep(arg1_args[1])
+                    }
+                    else {
+                        DivExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else if (arg2_type == "*") {
+                    if (arg2_args[1] == arg1) { // x / (y * x) == 1 / y
+                        DivExp(Double(1.0), simplifyExpOneStep(arg2_args[0]));
+                    }
+                    else if (arg2_args[0] == arg1) { // x / (x * y) == 1 / y
+                        DivExp(Double(1.0), simplifyExpOneStep(arg2_args[1]));
+                    }
+                    else {
+                        MulExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                    }
+                }
+                else {
+                    DivExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
+                }
             }
         }
-        ModExp(arg1, arg2): ModExp(arg1, arg2);
+        ModExp(arg1, arg2): ModExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
         DegExp(arg1, arg2): {
-            if (arg2 == Double(1.0) || arg2 == Int(1)) {
-                simplifyExp(arg1);
+            if (isOne(arg2)) { // x ^ 1
+                simplifyExpOneStep(arg1);
             }
             else {
-                DegExp(simplifyExp(arg1), simplifyExp(arg2));
+                DegExp(simplifyExpOneStep(arg1), simplifyExpOneStep(arg2));
             }
         }
-        VarDefine(name, val): VarDefine(name, simplifyExp(val));
+        VarDefine(name, val): VarDefine(name, simplifyExpOneStep(val));
         Var(v): Var(v);
         Int(i): Int(i);
         Double(d): Double(d);
-        LNExp(arg): LNExp(simplifyExp(arg));
-        DerivativeExp(arg, v): DerivativeExp(simplifyExp(arg), v);
+        LNExp(arg): LNExp(simplifyExpOneStep(arg));
+        DerivativeExp(arg, v): DerivativeExp(simplifyExpOneStep(arg), v);
     }
 }

@@ -15,9 +15,16 @@ export {
         DerivativeExp : (arg : Exp, v : string);
         LNExp : (arg : Exp);
 
+        getArgsExp(exp : Exp) -> [Exp];
+        getExpType(exp : Exp) -> string;
+
         s2exps(str_rec : string) -> [Exp];
         exps2s(exps : [Exp]) -> [string];
         exps2s_polish(exps : [Exp]) -> [string];
+        
+        s2exp(str_exp : string) -> Exp;
+        exp2s(exp : Exp) -> string;
+        exp2s_polish(exp : Exp) -> string;
 }
 
 lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
@@ -27,10 +34,6 @@ lingoGrammar() {
 		compilePegGrammar("#include MTaC/Block2/grammar.lingo");
 	});
 }
-
-s2exp(str_exp : string) -> Exp;
-exp2s(exp : Exp) -> string;
-exp2s_polish(exp : Exp) -> string;
 
 s2exps(str_rec : string) -> [Exp] {
         str_no_ws : string = strReplaces(str_rec, [" ", "", "\t", "", "\n", "", "\r"]);
@@ -72,7 +75,7 @@ exp2s(exp : Exp) -> string {
                 VarDefine(name, val):
                         concatStrings([name, " = ", exp2s(val)]);
                 DegExp(arg1, arg2):
-                        concatStrings([exp2s(arg1), " ^ ", exp2s(arg2)]);
+                        concatStrings(["(", exp2s(arg1), " ^ ", exp2s(arg2), ")"]);
                 DerivativeExp(arg, var):
                         concatStrings(["d", exp2s(arg), "/d(", var, ")"]);
                 LNExp(arg):
@@ -114,5 +117,39 @@ exp2s_polish(exp : Exp) -> string {
                         concatStrings(["d(", exp2s_polish(arg), ")/d(", var, ")"]);
                 LNExp(arg):
                         concatStrings(["LN(", exp2s_polish(arg), ")"]);    
+        }
+}
+
+getArgsExp(exp : Exp) -> [Exp] {
+        switch (exp) {
+                AddExp(arg1, arg2): [arg1, arg2];
+                SubExp(arg1, arg2): [arg1, arg2];
+                MulExp(arg1, arg2): [arg1, arg2];
+                ModExp(arg1, arg2): [arg1, arg2];
+                DivExp(arg1, arg2): [arg1, arg2];
+                DegExp(arg1, arg2): [arg1, arg2];
+                VarDefine(name, val): [Var(name), val];
+                Var(v): [Var(v)];
+                Int(i): [Int(i)];
+                Double(d): [Double(d)];
+                DerivativeExp(arg, v): [arg, Var(v)];
+                LNExp(arg): [arg];
+        }
+}
+
+getExpType(exp : Exp) -> string {
+        switch (exp) {
+                AddExp(arg1, arg2): "+";
+                SubExp(arg1, arg2): "-";
+                MulExp(arg1, arg2): "*";
+                ModExp(arg1, arg2): "%";
+                DivExp(arg1, arg2): "/";
+                DegExp(arg1, arg2): "^";
+                VarDefine(name, val): "=";
+                Var(v): "var";
+                Int(i): "num";
+                Double(d): "num";
+                DerivativeExp(arg, v): "d/dx";
+                LNExp(arg): "ln";
         }
 }

@@ -11,12 +11,13 @@ export {
 calcExp(exp : Exp, var_tree : Tree<string, Exp>) -> double;
 
 calcExps(exps : [Exp]) -> [double] {
+    simplified_exps : [Exp] = simplifyExps(exps);
     pairsVarVal : ref [Pair<string, Exp>] = ref [];
     no_defines : ref [Exp] = ref [];
-    fori(0, length(exps) - 1, \i -> 
-        switch (exps[i]) {
+    fori(0, length(simplified_exps) - 1, \i -> 
+        switch (simplified_exps[i]) {
             VarDefine(name, val): refArrayPush(pairsVarVal, Pair(name, val));
-            Exp(): refArrayPush(no_defines, exps[i]); 
+            Exp(): refArrayPush(no_defines, simplified_exps[i]); 
         }
     );
     var_tree : Tree<string, Exp> = setTreeValues(makeTree(), ^pairsVarVal);
@@ -67,7 +68,7 @@ calcExp(exp : Exp, var_tree : Tree<string, Exp>) -> double {
             }
         }
         DerivativeExp(arg, v): {
-                der_exp : Exp = derivative2exp(arg, v, var_tree);
+                der_exp : Exp = simplifyExp(derivative2exp(arg, v, var_tree));
                 //println(der_exp);
                 calcExp(der_exp, var_tree);
             }
