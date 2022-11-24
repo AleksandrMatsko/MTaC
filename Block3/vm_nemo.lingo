@@ -1,0 +1,36 @@
+vm_program = varDefine*:declarations ws command*:cmds { VMProgram(:declarations, :cmds) };
+
+varDefine = ws "VAR" ws var:v ws ":" ws type:t ws ";" ws { VarDefine(:v, :t) };
+
+type = array | int;
+int = ws "INT" ws { INT() };
+array = ws "(" ws type:t_ind ws "ARRAY OF" ws type:t_val ws ")" ws { ARRAY(:t_ind, :t_val) };
+
+command = assign | if | print | endCmd;
+exp = calcExp | num | app | upd | var;
+
+compOp = "==" | "<=" | ">=" | "<" | ">" | "!=";
+binOp = "+" | "-" | "*" | "/" | "%";
+
+var = ws (("_")* letter+ (letter | "_")*)$name ws { Var($name) };
+num = ws digit+$num ws { Num(s2i($num)) };
+calcExp = ws "(" ws exp:e1 binOp$op exp:e2  ws")" ws { CalcExp(:e1, $op, :e2) };
+app = ws "app(" exp:arr "," exp:index ")" ws { APP(:arr, :index) };
+upd = ws "upd(" exp:arr "," exp:index "," exp:val ")" ws { UPD(:arr, :index, :val) };
+
+assign = ws digit+$cmd_label ws ":" ws var:v ws ":=" ws exp:val ws "goto" ws "{" ws goto_label*:labels ws "}" ws {AssignCmd(s2i($cmd_label), :v, :val, :labels)}; 
+if = ws digit+$cmd_label ws ":" ws "if" test:cond "then" ws "goto" ws "{" ws goto_label*:then_labels ws "}" ws "else" ws "goto" ws "{" ws goto_label*:else_labels ws "}" ws {IfCmd(s2i($cmd_label), :cond, :then_labels, :else_labels)};
+print = ws digit+$cmd_label ws ":" ws "print(" ws exp:e ws ")" ws "goto" ws "{" ws goto_label*:labels ws "}" ws {PrintCmd(s2i($cmd_label), :e)};
+endCmd = ws digit+$cmd_label ws ":" ws {EndCmd(s2i($cmd_label))};
+
+test = ws "(" ws exp:e1 ws compOp$op ws exp:e2 ws ")" ws { TestVM(:e1, $op, :e2) };
+
+goto_label = ws digit+$l ws ","? ws {Label(s2i($l))};
+
+letter = 'a'-'z';
+bigLetter = 'A'-'Z';
+digit = '0'-'9';
+ws = (" " | "\t" | "\n" | "\r" | comment)*;
+
+comment = "/*" (letter | bigLetter | space)* "*/";
+space = (" " | "\t" | "_");
