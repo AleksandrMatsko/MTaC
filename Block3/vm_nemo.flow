@@ -6,11 +6,10 @@ export {
 
     Command ::= AssignCmd, IfCmd, PrintCmd, EndCmd;
     AssignCmd : (cmd_label : int, v : Var, val : Exp, labels : [Label]);
-    IfCmd : (cmd_label : int, cond : TestVM, then_labels : [Label], else_labels : [Label]);
+    IfCmd : (cmd_label : int, cond : Test, then_labels : [Label], else_labels : [Label]);
     PrintCmd : (cmd_label : int, e : Exp);
     EndCmd : (cmd_label : int);
 
-    TestVM : (e1 : Exp, op : string, e2 : Exp);
     Label : (l : int);
 
     s2vm_program(vm_str : string) -> VMProgram;

@@ -11,6 +11,7 @@ exp = calcExp | num | app | upd | var;
 
 compOp = "==" | "<=" | ">=" | "<" | ">" | "!=";
 binOp = "+" | "-" | "*" | "/" | "%";
+logicOp = "&&" | "||";
 
 var = ws (("_")* letter+ (letter | "_")*)$name ws { Var($name) };
 num = ws digit+$num ws { Num(s2i($num)) };
@@ -23,7 +24,13 @@ if = ws digit+$cmd_label ws ":" ws "if" test:cond "then" ws "goto" ws "{" ws got
 print = ws digit+$cmd_label ws ":" ws "print(" ws exp:e ws ")" ws "goto" ws "{" ws goto_label*:labels ws "}" ws {PrintCmd(s2i($cmd_label), :e)};
 endCmd = ws digit+$cmd_label ws ":" ws {EndCmd(s2i($cmd_label))};
 
-test = ws "(" ws exp:e1 ws compOp$op ws exp:e2 ws ")" ws { TestVM(:e1, $op, :e2) };
+test = ws "(" boolExp:be ")" ws { Test(:be) };
+boolExp = logicExp | compExp | notBoolExp | true | false;
+compExp = ws exp:e1 ws compOp$op ws exp:e2 ws {CompExp(:e1, $op, :e2)};
+logicExp = ws "(" ws boolExp:be1 ws logicOp$lop ws boolExp:be2 ws ")" ws {LogicExp(:be1, $op, :be2)};
+notBoolExp = ws "!" boolExp:nbe ws {Not(:nbe)};
+true = ws "TRUE" ws {TRUE()};
+false = ws "FALSE" ws {FALSE()};
 
 goto_label = ws digit+$l ws ","? ws {Label(s2i($l))};
 

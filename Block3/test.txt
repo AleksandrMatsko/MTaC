@@ -25,7 +25,7 @@ VAR array : (INT ARRAY OF (INT ARRAY OF INT));
         } /* select */
     );
 
-    IF (a == 10)? THEN { /* IF and test*/
+    IF (!(a == 10 && a != b_one))? THEN { /* IF and test*/
         a := (a + 1)
     }
     ELSE {

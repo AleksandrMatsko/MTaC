@@ -11,6 +11,7 @@ exp = calcExp | num | app | upd | var;
 
 compOp = "==" | "<=" | ">=" | "<" | ">" | "!=";
 binOp = "+" | "-" | "*" | "/" | "%";
+logicOp = "&&" | "||";
 
 var = ws (("_")* letter+ (letter | "_")*)$name ws { Var($name) };
 num = ws digit+$num ws { Num(s2i($num)) };
@@ -21,11 +22,19 @@ upd = ws "UPD(" exp:arr "," exp:index "," exp:val ")" ws { UPD(:arr, :index, :va
 assign = ws var:v ws ":=" ws exp:val ws { Assign(:v, :val) };
 print = ws "PRINT(" ws exp:e ws ")" ws { Print(:e) };
 iter = ws "(" ws body:b ws ")" ws "*" ws { Iter(:b) };
-test = ws "(" ws exp:e1 ws compOp$op ws exp:e2 ws ")" ws "?" ws { Test(:e1, $op, :e2) };
+test = ws "(" boolExp:be ")" ws "?" ws { Test(:be) };
 select = ws "(" ws body:b nextSelect*:next ws ")" ws { Select(:b, :next) };
 sequence = ws "{" ws body:b nextInSeq*:next ws "}" ws { Sequence(:b, :next) };
 if = ws "IF" test:test_cond "THEN" ws body:b1 ws "ELSE" ws body:b2 ws { If(:test_cond, :b1, :b2) };
 while = ws "WHILE" test:test_cond "DO" body:b ws { While(:test_cond, :b) };
+
+boolExp = logicExp | compExp | notBoolExp | true | false;
+compExp = ws exp:e1 ws compOp$op ws exp:e2 ws { CompExp(:e1, $op, :e2) };
+logicExp = ws "(" ws boolExp:be1 ws logicOp$lop ws boolExp:be2 ws ")" ws { LogicExp(:be1, $op, :be2) };
+notBoolExp = ws "!" boolExp:nbe ws { Not(:nbe) };
+true = ws "TRUE" ws { TRUE() };
+false = ws "FALSE" ws { FALSE() };
+
 
 nextSelect = ws "U" ws body;
 nextInSeq = ws ";" ws body;

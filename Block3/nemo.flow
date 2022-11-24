@@ -14,7 +14,7 @@ export {
     Assign : (v : Var, val : Exp);
     Print : (e : Exp);
     Iter : (b : Body);
-    Test : (e1 : Exp, op : string, e2 : Exp);
+    Test : (be : BoolExp);
     Sequence : (b : Body, next : [Body]);
     Select : (b : Body, next : [Body]);
 
@@ -24,6 +24,13 @@ export {
     APP : (arr : Exp, index : Exp);
     Var : (name : string);
     Num : (num : int);
+
+    BoolExp ::= CompExp, LogicExp, Not, TRUE, FALSE;
+    CompExp : (e1 : Exp, op : string, e2 : Exp);
+    LogicExp : (be1 : BoolExp, lop : string, be2 : BoolExp);
+    Not : (be : BoolExp);
+    TRUE : ();
+    FALSE : ();
 
     s2program_tree(str_prog : string) -> Program;
 }
