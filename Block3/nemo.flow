@@ -1,0 +1,42 @@
+import lingo/pegcode/driver;
+
+export {
+    Program : (declarations : [VarDefine], b : Body);
+
+    Type ::= ARRAY, INT;
+    ARRAY : (t_ind : Type, t_val : Type);
+    INT : ();
+    VarDefine : (v : Var, t : Type);
+
+    Body ::= If, While, Assign, Print, Iter, Test, Sequence, Select;
+    If : (test_cond : Test, b1 : Body, b2 : Body);
+    While : (test_cond : Test, b : Body);
+    Assign : (v : Var, val : Exp);
+    Print : (e : Exp);
+    Iter : (b : Body);
+    Test : (e1 : Exp, op : string, e2 : Exp);
+    Sequence : (b : Body, next : [Body]);
+    Select : (b : Body, next : [Body]);
+
+    Exp ::= CalcExp, Num, APP, UPD, Var;
+    CalcExp : (e1 : Exp, op : string, e2 : Exp);
+    UPD : (arr : Exp, index : Exp, val : Exp);
+    APP : (arr : Exp, index : Exp);
+    Var : (name : string);
+    Num : (num : int);
+
+    s2program_tree(str_prog : string) -> Program;
+}
+
+lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+lingoGrammar() {
+	onlyOnce(lingoGrammarOp, \ -> {
+		compilePegGrammar("#include MTaC/Block3/nemo.lingo");
+	});
+}
+
+s2program_tree(str_prog : string) -> Program {
+    parsic(lingoGrammar(), str_prog, defaultPegActions);
+}
+

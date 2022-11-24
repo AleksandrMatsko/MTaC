@@ -1,0 +1,7 @@
+import MTaC/Block3/nemo;
+
+main() {
+    str_program : string = getFileContent("MTaC/Block3/test.txt");
+    println(s2program_tree(str_program));
+    quit(0);
+}

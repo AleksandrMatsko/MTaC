@@ -1,0 +1,39 @@
+program = varDefine*:declarations ws body:b { Program(:declarations, :b) };
+
+varDefine = ws "VAR" ws var:v ws ":" ws type:t ws ";" ws { VarDefine(:v, :t) };
+
+type = array | int;
+int = ws "INT" ws { INT() };
+array = ws "(" ws type:t_ind ws "ARRAY OF" ws type:t_val ws ")" ws { ARRAY(:t_ind, :t_val) };
+
+body = if | while | assign | print | iter | test | sequence | select;
+exp = calcExp | num | app | upd | var;
+
+compOp = "==" | "<=" | ">=" | "<" | ">" | "!=";
+binOp = "+" | "-" | "*" | "/" | "%";
+
+var = ws (("_")* letter+ (letter | "_")*)$name ws { Var($name) };
+num = ws digit+$num ws { Num(s2i($num)) };
+calcExp = ws "(" ws exp:e1 binOp$op exp:e2  ws")" ws { CalcExp(:e1, $op, :e2) };
+app = ws "APP(" exp:arr "," exp:index ")" ws { APP(:arr, :index) };
+upd = ws "UPD(" exp:arr "," exp:index "," exp:val ")" ws { UPD(:arr, :index, :val) };
+
+assign = ws var:v ws ":=" ws exp:val ws { Assign(:v, :val) };
+print = ws "PRINT(" ws exp:e ws ")" ws { Print(:e) };
+iter = ws "(" ws body:b ws ")" ws "*" ws { Iter(:b) };
+test = ws "(" ws exp:e1 ws compOp$op ws exp:e2 ws ")" ws "?" ws { Test(:e1, $op, :e2) };
+select = ws "(" ws body:b nextSelect*:next ws ")" ws { Select(:b, :next) };
+sequence = ws "{" ws body:b nextInSeq*:next ws "}" ws { Sequence(:b, :next) };
+if = ws "IF" test:test_cond "THEN" ws body:b1 ws "ELSE" ws body:b2 ws { If(:test_cond, :b1, :b2) };
+while = ws "WHILE" test:test_cond "DO" body:b ws { While(:test_cond, :b) };
+
+nextSelect = ws "U" ws body;
+nextInSeq = ws ";" ws body;
+
+letter = 'a'-'z';
+bigLetter = 'A'-'Z';
+digit = '0'-'9';
+ws = (" " | "\t" | "\n" | "\r" | comment)*;
+
+comment = "/*" (letter | bigLetter | space)* "*/";
+space = (" " | "\t" | "_");

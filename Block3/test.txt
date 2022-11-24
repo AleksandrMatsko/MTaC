@@ -1,0 +1,56 @@
+VAR a : INT; /* var defines and INT*/
+VAR counter : INT; 
+VAR arr : (INT ARRAY OF INT);
+VAR b_one : INT;
+VAR array : (INT ARRAY OF (INT ARRAY OF INT));
+
+{
+    counter := 0; /* assign */
+    a := 9;
+    a := (a + 1); /* calcExp */
+    PRINT(a); /* PRINT */
+    b_one := 6;
+
+    (
+        {
+            a := ((a / 1) * 2);
+            PRINT(a)
+        } U {
+            a := ((a * 6) / 3);
+            a := (a / 2);
+            PRINT(a)
+        } U {
+            counter := 1;
+            b_one := (b_one * 10)
+        } /* select */
+    );
+
+    IF (a == 10)? THEN { /* IF and test*/
+        a := (a + 1)
+    }
+    ELSE {
+        a := 10
+    };
+
+    PRINT(a);
+
+    arr := UPD(arr, 0, 1); /* upd */
+    arr := UPD(arr, 1, 2);
+    array := UPD(array, 0, arr);
+    arr := UPD(arr, 2, 3);
+    array := UPD(array, 1, arr);
+    PRINT(APP(array, 1)); /* app and print_ */
+
+
+    WHILE (counter != 5)? DO { /* while */
+        counter := (counter + 1);
+        PRINT(counter)
+    };
+
+    (
+        {
+            a := (a + 1);
+            (a < 25)?
+        }
+    )*
+}
