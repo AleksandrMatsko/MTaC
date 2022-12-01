@@ -2,9 +2,10 @@ program = varDefine*:declarations ws body:b { Program(:declarations, :b) };
 
 varDefine = ws "VAR" ws var:v ws ":" ws type:t ws ";" ws { VarDefine(:v, :t) };
 
-type = array | int;
+type = array | int | bool;
 int = ws "INT" ws { INT() };
 array = ws "(" ws type:t_ind ws "ARRAY OF" ws type:t_val ws ")" ws { ARRAY(:t_ind, :t_val) };
+bool = ws "BOOL" ws { BOOL() };
 
 body = if | while | assign | print | iter | test | sequence | select;
 exp = calcExp | num | app | upd | var;
@@ -30,7 +31,7 @@ while = ws "WHILE" test:test_cond "DO" body:b ws { While(:test_cond, :b) };
 
 boolExp = logicExp | compExp | notBoolExp | true | false;
 compExp = ws exp:e1 ws compOp$op ws exp:e2 ws { CompExp(:e1, $op, :e2) };
-logicExp = ws "(" ws boolExp:be1 ws logicOp$lop ws boolExp:be2 ws ")" ws { LogicExp(:be1, $op, :be2) };
+logicExp = ws "(" ws boolExp:be1 ws logicOp$lop ws boolExp:be2 ws ")" ws { LogicExp(:be1, $lop, :be2) };
 notBoolExp = ws "!" boolExp:nbe ws { Not(:nbe) };
 true = ws "TRUE" ws { TRUE() };
 false = ws "FALSE" ws { FALSE() };

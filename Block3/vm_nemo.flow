@@ -7,13 +7,13 @@ export {
     Command ::= AssignCmd, IfCmd, PrintCmd, EndCmd;
     AssignCmd : (cmd_label : int, v : Var, val : Exp, labels : [Label]);
     IfCmd : (cmd_label : int, cond : Test, then_labels : [Label], else_labels : [Label]);
-    PrintCmd : (cmd_label : int, e : Exp);
+    PrintCmd : (cmd_label : int, e : Exp, labels : [Label]);
     EndCmd : (cmd_label : int);
 
     Label : (l : int);
 
     s2vm_program(vm_str : string) -> VMProgram;
-
+    vm_program2s(prog : VMProgram) -> string;
 }
 
 lingoGrammarVMOp : ref Maybe<[PegOp]> = ref None();
@@ -27,6 +27,70 @@ lingoGrammarVM() {
 s2vm_program(vm_str : string) -> VMProgram {
     parsic(lingoGrammarVM(), vm_str, defaultPegActions);
 }
+
+vm_program2s(prog : VMProgram) -> string {
+    defines : ref [VarDefine] = ref [];
+    commands : ref [Command] = ref [];
+    switch(prog) {
+        VMProgram(decs, cmds): {
+            fori(0, length(decs) - 1, \i -> refArrayPush(defines, decs[i]));
+            fori(0, length(cmds) - 1, \i -> refArrayPush(commands, cmds[i]));
+        }
+    }
+    str_def : [string] = map(^defines, \def -> var_define2s(def) + "\n");
+    var_define_str : string = concatStrings(concat(str_def, ["\n"]));
+    str_cmd : [string] = map(^commands, \cmd -> cmd2s(cmd) + "\n");
+    concatStrings([var_define_str, concatStrings(str_cmd)]);
+
+}
+
+cmd2s(cmd : Command) -> string {
+    switch (cmd) {
+        AssignCmd(label, var, val, labels): {
+            concatStrings([i2s(label), ":\t\t", vm_exp2s(var), " := ", vm_exp2s(val), " goto ", labels2s(labels)]);
+        }
+        IfCmd(label, cond, then_labels, else_labels): {
+            concatStrings([i2s(label), ":\t\t", "if ", test2s(cond), " then goto ", labels2s(then_labels), " else goto ", labels2s(else_labels)]);
+        }
+        PrintCmd(label, e, labels): concatStrings([i2s(label), ":\t\tprint(", vm_exp2s(e), ") goto ", labels2s(labels)]);
+        EndCmd(label): concatStrings([i2s(label), ":\t\t"]);
+
+    }
+}
+
+labels2s(labels : [Label]) -> string {
+    str_labels : [string] = map(labels, \l -> label2s(l));
+    divided_labels : ref [string] = ref [];
+    fori(0, length(str_labels) - 2, \i -> refArrayPush(divided_labels, str_labels[i] + ", "));
+    refArrayPush(divided_labels, str_labels[length(str_labels) - 1]);
+    concatStrings(["{", concatStrings(^divided_labels), "}"]);
+}
+
+vm_exp2s(e : Exp) -> string {
+    switch(e) {
+        CalcExp(e1, op, e2): concatStrings(["(", vm_exp2s(e1), " ", op, " ", vm_exp2s(e2), ")"]);
+        UPD(arr, i, val): concatStrings(["upd(", vm_exp2s(arr), ", ", vm_exp2s(i), ", ", vm_exp2s(val), ")"]);
+        APP(arr, i): concatStrings(["app(", vm_exp2s(arr), ", ", vm_exp2s(i), ")"]);
+        Var(name): name;
+        Num(n): i2s(n);
+    }
+}
+
+label2s(l : Label) -> string {
+    switch(l) {
+        Label(i): {
+            if (i > 0) {
+                i2s(i);
+            }
+            else {
+                "PANIC"
+            }
+        }
+    }
+}
+
+
+
 
 
 

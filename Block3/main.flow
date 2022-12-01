@@ -4,10 +4,11 @@ import MTaC/Block3/vm_nemo;
 main() {
     str_program : string = getFileContent("MTaC/Block3/test.txt");
     println(s2program_tree(str_program));
-
     println("\n\n");
 
     vm_str : string = getFileContent("MTaC/Block3/test_vm.txt");
     println(s2vm_program(vm_str));
+    println("\n\n");
+    println(vm_program2s(s2vm_program(vm_str)));
     quit(0);
 }

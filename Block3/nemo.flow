@@ -3,9 +3,10 @@ import lingo/pegcode/driver;
 export {
     Program : (declarations : [VarDefine], b : Body);
 
-    Type ::= ARRAY, INT;
+    Type ::= ARRAY, INT, BOOL;
     ARRAY : (t_ind : Type, t_val : Type);
     INT : ();
+    BOOL : ();
     VarDefine : (v : Var, t : Type);
 
     Body ::= If, While, Assign, Print, Iter, Test, Sequence, Select;
@@ -33,6 +34,12 @@ export {
     FALSE : ();
 
     s2program_tree(str_prog : string) -> Program;
+
+
+    var_define2s(def : VarDefine) -> string;
+    type2s(t : Type) -> string;
+    test2s(c : Test) -> string;
+    bool_exp2s(be : BoolExp) -> string;
 }
 
 lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
@@ -47,3 +54,43 @@ s2program_tree(str_prog : string) -> Program {
     parsic(lingoGrammar(), str_prog, defaultPegActions);
 }
 
+var_define2s(def : VarDefine) -> string {
+    switch (def) {
+        VarDefine(var, type): concatStrings(["VAR ", exp2s(var), " : ", type2s(type)]);
+    }
+}
+
+type2s(t : Type) -> string {
+    switch (t) {
+        INT(): "INT";
+        BOOL(): "BOOL";
+        ARRAY(t1, t2): concatStrings(["(", type2s(t1), " ARRAY OF ", type2s(t2), ")"]); 
+    }
+}
+
+exp2s(e : Exp) -> string {
+    switch(e) {
+        CalcExp(e1, op, e2): concatStrings(["(", exp2s(e1), " ", op, " ", exp2s(e2), ")"]);
+        UPD(arr, i, val): concatStrings(["UPD(", exp2s(arr), ", ", exp2s(i), ", ", exp2s(val), ")"]);
+        APP(arr, i): concatStrings(["APP(", exp2s(arr), ", ", exp2s(i), ")"]);
+        Var(name): name;
+        Num(n): i2s(n);
+    }
+}
+
+test2s(c : Test) -> string {
+    switch (c) {
+        Test(cond): concatStrings(["(", bool_exp2s(cond), ")"]);
+    }
+}
+
+bool_exp2s(be : BoolExp) -> string {
+    switch (be) {
+        CompExp(e1, cop, e2): concatStrings([exp2s(e1), " ", cop, " ", exp2s(e2)]);
+        LogicExp(be1, lop, be2): concatStrings(["(", bool_exp2s(be1), " ", lop, " ", bool_exp2s(be2), ")"]);
+        Not(be1): concatStrings(["!", bool_exp2s(be1)]);
+        TRUE(): "TRUE";
+        FALSE(): "FALSE";
+    }
+
+}
