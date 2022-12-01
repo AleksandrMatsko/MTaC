@@ -5,7 +5,7 @@ export {
     VMProgram : (declarations : [VarDefine], cmds : [Command]);
 
     Command ::= AssignCmd, IfCmd, PrintCmd, EndCmd;
-    AssignCmd : (cmd_label : int, v : Var, val : Exp, labels : [Label]);
+    AssignCmd : (cmd_label : int, v : Var, val : Assignable, labels : [Label]);
     IfCmd : (cmd_label : int, cond : Test, then_labels : [Label], else_labels : [Label]);
     PrintCmd : (cmd_label : int, e : Exp, labels : [Label]);
     EndCmd : (cmd_label : int);
@@ -47,7 +47,7 @@ vm_program2s(prog : VMProgram) -> string {
 cmd2s(cmd : Command) -> string {
     switch (cmd) {
         AssignCmd(label, var, val, labels): {
-            concatStrings([i2s(label), ":\t\t", vm_exp2s(var), " := ", vm_exp2s(val), " goto ", labels2s(labels)]);
+            concatStrings([i2s(label), ":\t\t", vm_exp2s(var), " := ", vm_assignable2s(val), " goto ", labels2s(labels)]);
         }
         IfCmd(label, cond, then_labels, else_labels): {
             concatStrings([i2s(label), ":\t\t", "if ", test2s(cond), " then goto ", labels2s(then_labels), " else goto ", labels2s(else_labels)]);
@@ -59,11 +59,23 @@ cmd2s(cmd : Command) -> string {
 }
 
 labels2s(labels : [Label]) -> string {
-    str_labels : [string] = map(labels, \l -> label2s(l));
-    divided_labels : ref [string] = ref [];
-    fori(0, length(str_labels) - 2, \i -> refArrayPush(divided_labels, str_labels[i] + ", "));
-    refArrayPush(divided_labels, str_labels[length(str_labels) - 1]);
-    concatStrings(["{", concatStrings(^divided_labels), "}"]);
+    if (length(labels) == 0) {
+        "{}";
+    }
+    else {
+        str_labels : [string] = map(labels, \l -> label2s(l));
+        divided_labels : ref [string] = ref [];
+        fori(0, length(str_labels) - 2, \i -> refArrayPush(divided_labels, str_labels[i] + ", "));
+        refArrayPush(divided_labels, str_labels[length(str_labels) - 1]);
+        concatStrings(["{", concatStrings(^divided_labels), "}"]);
+    }
+}
+
+vm_assignable2s(a : Assignable) -> string {
+    switch(a) {
+        Exp(): vm_exp2s(a);
+        BoolExp(): bool_exp2s(a);
+    }
 }
 
 vm_exp2s(e : Exp) -> string {

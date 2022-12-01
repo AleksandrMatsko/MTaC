@@ -6,11 +6,142 @@ export {
 }
 
 translate(my_program : Program) -> VMProgram {
-    switch(my_program) {
-        Production(defines, body): VMProgram(defines, translateBody(body));
+    var_type_tree : Tree<string, Type> = fold(my_program.declarations, makeTree(), \tree, dec -> setTree(tree, dec.v.name, dec.t));
+    final_state : State = translateBody(my_program.b, State([], 0), var_type_tree);
+    end_cmd : Command = EndCmd(final_state.maxLabel);
+    VMProgram(my_program.declarations, concat(final_state.cmds, [end_cmd]));
+}
+
+State(cmds : [Command], maxLabel : int);
+
+translateBody(b : Body, state : State, var_type_tree : Tree<string, Type>) -> State {
+    switch(b) {
+        If(cond, b1, b2): {
+            nextLabel : int = state.maxLabel + 1;
+            b1_state : State = translateBody(b1, State([], nextLabel), var_type_tree);
+            step_over_else : int = b1_state.maxLabel;
+            b2_state : State = translateBody(b2, State([], b1_state.maxLabel + 1), var_type_tree);
+            step_over_else_cmd : Command = IfCmd(step_over_else, Test(TRUE()), [Label(b2_state.maxLabel)], []);
+            buildIf : Command = IfCmd(state.maxLabel, cond, [Label(nextLabel)], [Label(step_over_else + 1)]);
+            State(concat3(state.cmds, [buildIf], concat3(b1_state.cmds, [step_over_else_cmd], b2_state.cmds)), b2_state.maxLabel);
+        }
+        While(cond, b1): {
+            nextLabel : int = state.maxLabel + 1;
+            b1_state : State = translateBody(b1, State([], nextLabel), var_type_tree);
+            goBack : Command = IfCmd(b1_state.maxLabel, cond, [Label(nextLabel)], [Label(b1_state.maxLabel + 1)]);
+            first_if : Command = IfCmd(state.maxLabel, cond, [Label(nextLabel)], [Label(b1_state.maxLabel+ 1)]);
+            State(concat3(state.cmds, [first_if], concat(b1_state.cmds, [goBack])), b1_state.maxLabel + 1);
+        }
+        Assign(v, val): {
+            nextLabel : int = state.maxLabel + 1;
+            newCmd : Command = AssignCmd(state.maxLabel, v, val, [Label(nextLabel)]);
+            State(concat(state.cmds, [newCmd]), nextLabel);
+        }
+        Print(e): {
+            nextLabel : int = state.maxLabel + 1;
+            newCmd : Command = PrintCmd(state.maxLabel, e, [Label(nextLabel)]);
+            State(concat(state.cmds, [newCmd]), nextLabel);
+        }
+        Test(be): {
+            nextLabel : int = state.maxLabel + 1;
+            newCmd : Command = IfCmd(state.maxLabel, Test(be), [Label(nextLabel)], []);
+            State(concat(state.cmds, [newCmd]), nextLabel);
+        }
+        Sequence(b1, next_b): {
+            start_state_b1 : State = State([], state.maxLabel);
+            end_state_b1 : State = translateBody(b1, start_state_b1, var_type_tree);
+            newState : State = State(concat(state.cmds, end_state_b1.cmds), end_state_b1.maxLabel);
+            if (length(next_b) == 0) {
+                newState;
+            }
+            else {
+                fold(next_b, newState, \prev_state, another_b -> translateBody(another_b, prev_state, var_type_tree));
+            }
+        }
+        Iter(b1): {
+            iter_body_state : State = translateBody(b1, State([], state.maxLabel), var_type_tree);
+            end : int = iter_body_state.maxLabel;
+            goBackCmd : Command = IfCmd(end, Test(TRUE()), [Label(state.maxLabel), Label(end + 1)], []);
+            State(concat(state.cmds, concat(iter_body_state.cmds, [goBackCmd])), end + 1);
+        }
+        Select(b1, other_b): {
+            nextLabel : int = state.maxLabel + 1;
+            b1_state : State = translateBody(b1, State([], nextLabel), var_type_tree);
+            if (length(other_b) == 0) {
+                det_select : Command = IfCmd(state.maxLabel, Test(TRUE()), [Label(nextLabel)], []);
+                State(concat3(state.cmds, [det_select], b1_state.cmds), b1_state.maxLabel);
+            }
+            else {
+                other_states : ref [State] = ref [b1_state];
+                fori(1, length(other_b), \i -> refArrayPush(other_states, translateBody(other_b[i - 1], State([], ^other_states[i - 1].maxLabel), var_type_tree)));
+                equal_start_label_states : [State] = map(^other_states, \s -> State(refactorLabel(s.cmds, nextLabel), s.maxLabel));
+                start_val : int = -10;
+                max_label : int = fold(equal_start_label_states, start_val, \m, l -> max(l.maxLabel, m));
+                ready_states : [State] = map(equal_start_label_states, \s -> State(refactorGotoLabels(s.cmds, s.maxLabel, max_label), max_label));
+                all_commands : [Command] = fold(ready_states, [], \cmds, s -> concat(cmds, s.cmds));
+                sorted_commands : [Command] = sortCustom(all_commands, \cmd -> cmd.cmd_label, true);
+                not_det_select : Command = IfCmd(state.maxLabel, Test(TRUE()), [Label(nextLabel)], [Label(max_label)]);
+                State(concat3(state.cmds, [not_det_select], sorted_commands), max_label);
+            }
+
+        }
     }
 }
 
-translateBody(b : Body) -> [Command] {
+refactorLabel(cmds : [Command], new_label : int) -> [Command] {
+    switch(cmds[0]) {
+        IfCmd(l, cond, ls1, ls2): concat([IfCmd(new_label, cond, ls1, ls2)], tail(cmds));
+        AssignCmd(l, v, val, ls): concat([AssignCmd(new_label, v, val, ls)], tail(cmds));
+        PrintCmd(l, e, ls): concat([PrintCmd(new_label, e, ls)], tail(cmds));
+        EndCmd(l): concat([EndCmd(new_label)], tail(cmds));
+    }
+}
 
+refactorGotoLabels(cmds : [Command], prev_label : int, new_label : int) -> [Command] {
+    map(cmds, \cmd -> {
+        switch(cmd) {
+            IfCmd(label, cond, ls1, ls2): {
+                new_ls1 : [Label] = map(ls1, \l -> {
+                    if (l.l == prev_label) {
+                        Label(new_label);
+                    }
+                    else {
+                        l;
+                    }
+                });
+                new_ls2 : [Label] = map(ls2, \l -> {
+                    if (l.l == prev_label) {
+                        Label(new_label);
+                    }
+                    else {
+                        l;
+                    }
+                });
+                IfCmd(label, cond, new_ls1, new_ls2);
+            };
+            AssignCmd(label, v, val, ls): {
+                new_ls : [Label] = map(ls, \l -> {
+                    if (l.l == prev_label) {
+                        Label(new_label);
+                    }
+                    else {
+                        l;
+                    }
+                });
+                AssignCmd(label, v, val, new_ls);
+            };
+            PrintCmd(label, e, ls): {
+                new_ls : [Label] = map(ls, \l -> {
+                    if (l.l == prev_label) {
+                        Label(new_label);
+                    }
+                    else {
+                        l;
+                    }
+                });
+                PrintCmd(label, e, new_ls);
+            };
+            EndCmd(l): EndCmd(new_label);
+        }
+    });
 }

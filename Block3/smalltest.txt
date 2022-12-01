@@ -1,0 +1,36 @@
+VAR a : INT;
+VAR b : INT;
+
+{
+    a := 0;
+    b := 0;
+    a := (a + 1);
+    IF (a > 0)? THEN {
+        a := (a + 1);
+        PRINT(a)
+    }
+    ELSE {
+        a := (a + 2)
+    };
+    (a == 3)?;
+    (a := (a + 1))*;
+    WHILE (b < 10)? DO {
+        PRINT(b);
+        b := (b + 1)
+    };
+    ({
+      PRINT((a + 1));
+      PRINT((a + 2))  
+    } U {
+        PRINT((a + 3));
+        a := (a + 10);
+        PRINT((a + 4))
+    } U {
+        PRINT((a + 5));
+        a := (a + 11);
+        PRINT((a + 6));
+        PRINT((a + 7));
+        PRINT((a + 8))  
+    })
+
+}

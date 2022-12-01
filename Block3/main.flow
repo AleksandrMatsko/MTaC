@@ -1,8 +1,9 @@
 import MTaC/Block3/nemo;
 import MTaC/Block3/vm_nemo;
+import MTaC/Block3/translator;
 
 main() {
-    str_program : string = getFileContent("MTaC/Block3/test.txt");
+    /*str_program : string = getFileContent("MTaC/Block3/test.txt");
     println(s2program_tree(str_program));
     println("\n\n");
 
@@ -10,5 +11,12 @@ main() {
     println(s2vm_program(vm_str));
     println("\n\n");
     println(vm_program2s(s2vm_program(vm_str)));
+    */
+
+    str_prog : string = getFileContent("MTaC/Block3/smalltest.txt");
+    println(s2program_tree(str_prog));
+    println("\n\n");
+
+    println(vm_program2s(translate(s2program_tree(str_prog))));
     quit(0);
 }

@@ -12,12 +12,14 @@ export {
     Body ::= If, While, Assign, Print, Iter, Test, Sequence, Select;
     If : (test_cond : Test, b1 : Body, b2 : Body);
     While : (test_cond : Test, b : Body);
-    Assign : (v : Var, val : Exp);
+    Assign : (v : Var, val : Assignable);
     Print : (e : Exp);
     Iter : (b : Body);
     Test : (be : BoolExp);
     Sequence : (b : Body, next : [Body]);
     Select : (b : Body, next : [Body]);
+
+    Assignable ::= Exp, BoolExp;
 
     Exp ::= CalcExp, Num, APP, UPD, Var;
     CalcExp : (e1 : Exp, op : string, e2 : Exp);

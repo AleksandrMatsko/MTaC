@@ -20,10 +20,12 @@ calcExp = ws "(" ws exp:e1 binOp$op exp:e2  ws")" ws { CalcExp(:e1, $op, :e2) };
 app = ws "app(" exp:arr "," exp:index ")" ws { APP(:arr, :index) };
 upd = ws "upd(" exp:arr "," exp:index "," exp:val ")" ws { UPD(:arr, :index, :val) };
 
-assign = ws digit+$cmd_label ws ":" ws var:v ws ":=" ws exp:val ws "goto" ws "{" ws gotoLabel*:labels ws "}" ws {AssignCmd(s2i($cmd_label), :v, :val, :labels)}; 
+assign = ws digit+$cmd_label ws ":" ws var:v ws ":=" ws assignable:val ws "goto" ws "{" ws gotoLabel*:labels ws "}" ws {AssignCmd(s2i($cmd_label), :v, :val, :labels)}; 
 if = ws digit+$cmd_label ws ":" ws "if" test:cond "then" ws "goto" ws "{" ws gotoLabel*:then_labels ws "}" ws "else" ws "goto" ws "{" ws gotoLabel*:else_labels ws "}" ws {IfCmd(s2i($cmd_label), :cond, :then_labels, :else_labels)};
 print = ws digit+$cmd_label ws ":" ws "print(" ws exp:e ws ")" ws "goto" ws "{" ws gotoLabel*:labels ws "}" ws {PrintCmd(s2i($cmd_label), :e, :labels)};
 endCmd = ws digit+$cmd_label ws ":" ws {EndCmd(s2i($cmd_label))};
+
+assignable = exp | boolExp;
 
 test = ws "(" boolExp:be ")" ws { Test(:be) };
 boolExp = logicExp | compExp | notBoolExp | true | false;
