@@ -39,7 +39,7 @@ VAR array : (INT ARRAY OF (INT ARRAY OF INT));
     array := UPD(array, 0, arr);
     arr := UPD(arr, 2, 3);
     array := UPD(array, 1, arr);
-    PRINT(APP(array, 1)); /* app and print_ */
+    PRINT(APP(array, 1)); /* app and print */
 
 
     WHILE (counter != 5)? DO { /* while */

@@ -1,22 +1,24 @@
 import MTaC/Block3/nemo;
 import MTaC/Block3/vm_nemo;
 import MTaC/Block3/translator;
+import MTAC/Block3/executor;
 
 main() {
     /*str_program : string = getFileContent("MTaC/Block3/test.txt");
     println(s2program_tree(str_program));
-    println("\n\n");
+    println("\n\n");*/
 
     vm_str : string = getFileContent("MTaC/Block3/test_vm.txt");
-    println(s2vm_program(vm_str));
-    println("\n\n");
-    println(vm_program2s(s2vm_program(vm_str)));
-    */
+    executeVM(s2vm_program(vm_str));
 
     str_prog : string = getFileContent("MTaC/Block3/smalltest.txt");
-    println(s2program_tree(str_prog));
-    println("\n\n");
-
-    println(vm_program2s(translate(s2program_tree(str_prog))));
+    translate_res : Pair<VMProgram, bool> = translate(s2program_tree(str_prog));
+    if (translate_res.second) {
+        println(vm_program2s(translate_res.first));
+        executeVM(translate_res.first);
+    }
+    else {
+        println("translated program is not valid")
+    }
     quit(0);
 }

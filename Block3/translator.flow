@@ -1,56 +1,72 @@
-import MTaC/Block3/nemo;
 import MTaC/Block3/vm_nemo;
 
 export {
-    translate(my_program : Program) -> VMProgram;
+    translate(my_program : Program) -> Pair<VMProgram, bool>;
 }
 
-translate(my_program : Program) -> VMProgram {
+translate(my_program : Program) -> Pair<VMProgram, bool> {
     var_type_tree : Tree<string, Type> = fold(my_program.declarations, makeTree(), \tree, dec -> setTree(tree, dec.v.name, dec.t));
-    final_state : State = translateBody(my_program.b, State([], 0), var_type_tree);
+    final_state : State = translateBody(my_program.b, State([], 0, true), var_type_tree);
     end_cmd : Command = EndCmd(final_state.maxLabel);
-    VMProgram(my_program.declarations, concat(final_state.cmds, [end_cmd]));
+    Pair(VMProgram(my_program.declarations, concat(final_state.cmds, [end_cmd])), final_state.valid);
 }
 
-State(cmds : [Command], maxLabel : int);
+State(cmds : [Command], maxLabel : int, valid : bool);
 
 translateBody(b : Body, state : State, var_type_tree : Tree<string, Type>) -> State {
     switch(b) {
         If(cond, b1, b2): {
             nextLabel : int = state.maxLabel + 1;
-            b1_state : State = translateBody(b1, State([], nextLabel), var_type_tree);
+            b1_state : State = translateBody(b1, State([], nextLabel, state.valid), var_type_tree);
             step_over_else : int = b1_state.maxLabel;
-            b2_state : State = translateBody(b2, State([], b1_state.maxLabel + 1), var_type_tree);
+            b2_state : State = translateBody(b2, State([], b1_state.maxLabel + 1, state.valid), var_type_tree);
             step_over_else_cmd : Command = IfCmd(step_over_else, Test(TRUE()), [Label(b2_state.maxLabel)], []);
             buildIf : Command = IfCmd(state.maxLabel, cond, [Label(nextLabel)], [Label(step_over_else + 1)]);
-            State(concat3(state.cmds, [buildIf], concat3(b1_state.cmds, [step_over_else_cmd], b2_state.cmds)), b2_state.maxLabel);
+            State(concat3(state.cmds, [buildIf], concat3(b1_state.cmds, [step_over_else_cmd], b2_state.cmds)), b2_state.maxLabel, state.valid && b1_state.valid && b2_state.valid);
         }
         While(cond, b1): {
             nextLabel : int = state.maxLabel + 1;
-            b1_state : State = translateBody(b1, State([], nextLabel), var_type_tree);
+            b1_state : State = translateBody(b1, State([], nextLabel, state.valid), var_type_tree);
             goBack : Command = IfCmd(b1_state.maxLabel, cond, [Label(nextLabel)], [Label(b1_state.maxLabel + 1)]);
             first_if : Command = IfCmd(state.maxLabel, cond, [Label(nextLabel)], [Label(b1_state.maxLabel+ 1)]);
-            State(concat3(state.cmds, [first_if], concat(b1_state.cmds, [goBack])), b1_state.maxLabel + 1);
+            State(concat3(state.cmds, [first_if], concat(b1_state.cmds, [goBack])), b1_state.maxLabel + 1, state.valid && b1_state.valid);
         }
         Assign(v, val): {
             nextLabel : int = state.maxLabel + 1;
-            newCmd : Command = AssignCmd(state.maxLabel, v, val, [Label(nextLabel)]);
-            State(concat(state.cmds, [newCmd]), nextLabel);
+            switch(lookupTree(var_type_tree, v.name)) {
+                None(): {
+                    println(concatStrings(["!!!!! translator: var ", v.name, " is not declared\n"]));
+                    newCmd : Command = AssignCmd(state.maxLabel, v, val, [Label(-1)]);
+                    State(concat(state.cmds, [newCmd]), nextLabel, false);
+                }
+                Some(t): {
+                    is_valid_assign : bool = checkValType(val, t, var_type_tree);
+                    if (is_valid_assign) {
+                        newCmd : Command = AssignCmd(state.maxLabel, v, val, [Label(nextLabel)]);
+                        State(concat(state.cmds, [newCmd]), nextLabel, state.valid);
+                    }
+                    else {
+                        println(concatStrings(["!!!!! translator: invalid assign to var ", v.name, " of type ", type2s(t), "\n"]));
+                        newCmd : Command = AssignCmd(state.maxLabel, v, val, [Label(-1)]);
+                        State(concat(state.cmds, [newCmd]), nextLabel, false);
+                    }
+                }
+            }
         }
         Print(e): {
             nextLabel : int = state.maxLabel + 1;
             newCmd : Command = PrintCmd(state.maxLabel, e, [Label(nextLabel)]);
-            State(concat(state.cmds, [newCmd]), nextLabel);
+            State(concat(state.cmds, [newCmd]), nextLabel, state.valid);
         }
         Test(be): {
             nextLabel : int = state.maxLabel + 1;
             newCmd : Command = IfCmd(state.maxLabel, Test(be), [Label(nextLabel)], []);
-            State(concat(state.cmds, [newCmd]), nextLabel);
+            State(concat(state.cmds, [newCmd]), nextLabel, state.valid);
         }
         Sequence(b1, next_b): {
-            start_state_b1 : State = State([], state.maxLabel);
+            start_state_b1 : State = State([], state.maxLabel, state.valid);
             end_state_b1 : State = translateBody(b1, start_state_b1, var_type_tree);
-            newState : State = State(concat(state.cmds, end_state_b1.cmds), end_state_b1.maxLabel);
+            newState : State = State(concat(state.cmds, end_state_b1.cmds), end_state_b1.maxLabel, end_state_b1.valid && state.valid);
             if (length(next_b) == 0) {
                 newState;
             }
@@ -59,31 +75,100 @@ translateBody(b : Body, state : State, var_type_tree : Tree<string, Type>) -> St
             }
         }
         Iter(b1): {
-            iter_body_state : State = translateBody(b1, State([], state.maxLabel), var_type_tree);
+            iter_body_state : State = translateBody(b1, State([], state.maxLabel, state.valid), var_type_tree);
             end : int = iter_body_state.maxLabel;
             goBackCmd : Command = IfCmd(end, Test(TRUE()), [Label(state.maxLabel), Label(end + 1)], []);
-            State(concat(state.cmds, concat(iter_body_state.cmds, [goBackCmd])), end + 1);
+            State(concat(state.cmds, concat(iter_body_state.cmds, [goBackCmd])), end + 1, state.valid && iter_body_state.valid);
         }
         Select(b1, other_b): {
             nextLabel : int = state.maxLabel + 1;
-            b1_state : State = translateBody(b1, State([], nextLabel), var_type_tree);
+            b1_state : State = translateBody(b1, State([], nextLabel, state.valid), var_type_tree);
             if (length(other_b) == 0) {
                 det_select : Command = IfCmd(state.maxLabel, Test(TRUE()), [Label(nextLabel)], []);
-                State(concat3(state.cmds, [det_select], b1_state.cmds), b1_state.maxLabel);
+                State(concat3(state.cmds, [det_select], b1_state.cmds), b1_state.maxLabel, state.valid && b1_state.valid);
             }
             else {
                 other_states : ref [State] = ref [b1_state];
-                fori(1, length(other_b), \i -> refArrayPush(other_states, translateBody(other_b[i - 1], State([], ^other_states[i - 1].maxLabel), var_type_tree)));
-                equal_start_label_states : [State] = map(^other_states, \s -> State(refactorLabel(s.cmds, nextLabel), s.maxLabel));
+                fori(1, length(other_b), \i -> refArrayPush(other_states, translateBody(other_b[i - 1], State([], ^other_states[i - 1].maxLabel, ^other_states[i - 1].valid), var_type_tree)));
+                equal_start_label_states : [State] = map(^other_states, \s -> State(refactorLabel(s.cmds, nextLabel), s.maxLabel, s.valid));
                 start_val : int = -10;
                 max_label : int = fold(equal_start_label_states, start_val, \m, l -> max(l.maxLabel, m));
-                ready_states : [State] = map(equal_start_label_states, \s -> State(refactorGotoLabels(s.cmds, s.maxLabel, max_label), max_label));
+                ready_states : [State] = map(equal_start_label_states, \s -> State(refactorGotoLabels(s.cmds, s.maxLabel, max_label), max_label, s.valid));
                 all_commands : [Command] = fold(ready_states, [], \cmds, s -> concat(cmds, s.cmds));
                 sorted_commands : [Command] = sortCustom(all_commands, \cmd -> cmd.cmd_label, true);
                 not_det_select : Command = IfCmd(state.maxLabel, Test(TRUE()), [Label(nextLabel)], [Label(max_label)]);
-                State(concat3(state.cmds, [not_det_select], sorted_commands), max_label);
+                start_valid : bool = true;
+                State(concat3(state.cmds, [not_det_select], sorted_commands), max_label, fold(ready_states, start_valid, \valid, s -> valid && s.valid));
             }
 
+        }
+    }
+}
+
+checkValType(val : Assignable, var_t : Type, var_type_tree : Tree<string, Type>) -> bool {
+    switch(var_t) {
+        INT(): switch(val) {
+            Exp(): switch(val) {
+                CalcExp(e1, op, e2): true;
+                UPD(arr, i, v): false;
+                APP(arr, i): switch(lookupTree(var_type_tree, arr.name)) {
+                    None(): false;
+                    Some(t): switch(t) {
+                        ARRAY(t_i, t_v): switch (t_v) {
+                            INT(): true;
+                            default: false;
+                        }
+                        default: false;
+                    }
+                }
+                Num(num): true;
+                Var(name): switch(lookupTree(var_type_tree, name)) {
+                    None(): false;
+                    Some(t): switch(t) {
+                        INT(): true;
+                        default: false;
+                    }
+                }
+            }
+            BoolExp(be): false;
+        }
+        BOOL(): switch(val) {
+            Exp(): false;
+            BoolExp(be): true;
+        }
+        ARRAY(t_ind, t_val): switch(val) {
+            Exp(): switch(val) {
+                CalcExp(e1, op, e2): false;
+                UPD(arr, i, v): switch (lookupTree(var_type_tree, arr.name)) {
+                    None(): false;
+                    Some(t): switch(t) {
+                        ARRAY(t_i, t_v): {
+                            t_i == t_ind && t_v == t_val && checkValType(v, t_val, var_type_tree);
+                        }
+                        default: false;
+                    }
+                }
+                APP(arr, i): switch(lookupTree(var_type_tree, arr.name)) {
+                    None(): false;
+                    Some(t): switch(t) {
+                        ARRAY(t_i, t_v): {
+                            t_i == t_ind && t_v == t_val;
+                        }
+                        default: false;
+                    }
+                }
+                Num(num): false;
+                Var(name): switch(lookupTree(var_type_tree, name)) {
+                    None(): false;
+                    Some(t): switch(t) {
+                        ARRAY(t_i, t_v): {
+                            t_i == t_ind && t_v == t_val;
+                        }
+                        default: false;
+                    }
+                }
+            }
+            BoolExp(be): false;
         }
     }
 }

@@ -13,7 +13,7 @@ export {
     If : (test_cond : Test, b1 : Body, b2 : Body);
     While : (test_cond : Test, b : Body);
     Assign : (v : Var, val : Assignable);
-    Print : (e : Exp);
+    Print : (e : Assignable);
     Iter : (b : Body);
     Test : (be : BoolExp);
     Sequence : (b : Body, next : [Body]);
@@ -23,25 +23,26 @@ export {
 
     Exp ::= CalcExp, Num, APP, UPD, Var;
     CalcExp : (e1 : Exp, op : string, e2 : Exp);
-    UPD : (arr : Exp, index : Exp, val : Exp);
-    APP : (arr : Exp, index : Exp);
+    UPD : (arr : Var, index : Exp, val : Assignable);
+    APP : (arr : Var, index : Exp);
     Var : (name : string);
     Num : (num : int);
 
-    BoolExp ::= CompExp, LogicExp, Not, TRUE, FALSE;
+    BoolExp ::= CompExp, LogicExp, Not, TRUE, FALSE, VarBoolExp;
     CompExp : (e1 : Exp, op : string, e2 : Exp);
     LogicExp : (be1 : BoolExp, lop : string, be2 : BoolExp);
     Not : (be : BoolExp);
     TRUE : ();
     FALSE : ();
+    VarBoolExp : (v : Var, lop : string, be : BoolExp);
 
     s2program_tree(str_prog : string) -> Program;
-
 
     var_define2s(def : VarDefine) -> string;
     type2s(t : Type) -> string;
     test2s(c : Test) -> string;
     bool_exp2s(be : BoolExp) -> string;
+    assignable2s(a : Assignable) -> string;
 }
 
 lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
@@ -70,10 +71,17 @@ type2s(t : Type) -> string {
     }
 }
 
+assignable2s(a : Assignable) -> string {
+    switch(a) {
+        Exp(): exp2s(a);
+        BoolExp(): bool_exp2s(a);
+    }
+}
+
 exp2s(e : Exp) -> string {
     switch(e) {
         CalcExp(e1, op, e2): concatStrings(["(", exp2s(e1), " ", op, " ", exp2s(e2), ")"]);
-        UPD(arr, i, val): concatStrings(["UPD(", exp2s(arr), ", ", exp2s(i), ", ", exp2s(val), ")"]);
+        UPD(arr, i, val): concatStrings(["UPD(", exp2s(arr), ", ", exp2s(i), ", ", assignable2s(val), ")"]);
         APP(arr, i): concatStrings(["APP(", exp2s(arr), ", ", exp2s(i), ")"]);
         Var(name): name;
         Num(n): i2s(n);
@@ -93,6 +101,7 @@ bool_exp2s(be : BoolExp) -> string {
         Not(be1): concatStrings(["!", bool_exp2s(be1)]);
         TRUE(): "TRUE";
         FALSE(): "FALSE";
+        VarBoolExp(v, lop, be1): concatStrings(["(", exp2s(v), " ", lop, " ", bool_exp2s(be1), ")"]);
     }
 
 }

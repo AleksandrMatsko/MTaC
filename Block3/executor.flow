@@ -1,0 +1,545 @@
+import MTaC/Block3/translator;
+
+export {
+    executeVM(vm_prog : VMProgram) -> void;
+}
+
+VarValue ::= Int, Array, Bool, NotInitialized;
+Int : (i : int);
+Bool : (b : bool);
+Array : (arr : [VarValue], t : Type);
+MemState : (label : int, vars_val : Tree<string, VarValue>);
+NotInitialized : (t : Type);
+
+executeVM(vm_prog : VMProgram) -> void {
+    defines : [VarDefine] = vm_prog.declarations;
+    end_label : int = vm_prog.cmds[length(vm_prog.cmds) - 1].cmd_label;
+    if (end_label != 0) {
+        var_tree : Tree<string, VarValue> = fold(defines, makeTree(), \tree, def -> setTree(tree, def.v.name, getStartValByType(def.t)));
+        start_mem_state : MemState = MemState(0, var_tree);
+        cmd_tree : Tree<int, [Command]> = fold(vm_prog.cmds, makeTree(), \tree, cmd -> treePushToArrayValue(tree, cmd.cmd_label, cmd));
+        println("\nexecuting program...\n");
+        startExecute(cmd_tree, [start_mem_state], end_label);
+        println("\nprogram finished\n")
+    }
+}
+
+startExecute(cmd_tree : Tree<int, [Command]>, mem_states : [MemState], end_label : int) -> void {
+    if (length(mem_states) == 1 && mem_states[0].label != -1 && mem_states[0].label != end_label) {
+        startExecute(cmd_tree, executeCmd(cmd_tree, mem_states[0], end_label), end_label);
+    }
+    else if (length(mem_states) == 1 && (mem_states[0].label == -1 || mem_states[0].label == end_label)) {
+        
+    }
+    else if (length(mem_states) == 0) {
+        
+    }
+    else {
+        fori(0, length(mem_states) - 1, \i -> {
+            if (mem_states[i].label != -1 && mem_states[i].label != end_label) {
+                startExecute(cmd_tree, executeCmd(cmd_tree, mem_states[i], end_label), end_label);
+            }
+        });
+    }
+}
+
+getStartValByType(t : Type) -> VarValue {
+    switch(t) {
+        INT(): NotInitialized(INT());
+        BOOL(): NotInitialized(BOOL());
+        ARRAY(t_ind, t_val): Array([], t_val);
+    }
+}
+
+value2s(value : VarValue) -> string {
+    switch(value) {
+        Int(i): i2s(i);
+        Bool(b): b2s(b);
+        Array(a, t): {
+            parts : ref [string] = ref [];
+            fori(0, length(a) - 1, \i -> {
+                if (i != length(a) - 1) {
+                    refArrayPush(parts, concatStrings([value2s(a[i]), ", "]))
+                }
+                else {
+                    refArrayPush(parts, value2s(a[i]))
+                }
+            })
+            concatStrings(concat3(["["], ^parts, ["]"]))
+        };
+        NotInitialized(t): "##### executor: expression in print is not valid\n"
+    }
+}
+
+executeCmd(cmd_tree : Tree<int, [Command]>, mem_state : MemState, end_label : int) -> [MemState] {
+    if (mem_state.label == -1 || mem_state.label == end_label) {
+        [mem_state];
+    }
+    else {
+        switch(lookupTree(cmd_tree, mem_state.label)) {
+            None(): {
+                println(concatStrings(["##### executor: label ", i2s(mem_state.label), " not found\n"]));
+                [MemState(-1, mem_state.vars_val)];
+            } 
+            Some(cmds): {
+                fold(cmds, [], \mem_states, cmd -> {concat(mem_states,
+                    switch (cmd) {
+                        AssignCmd(cmd_l, v, val, next_labels): {
+                            if (contains(next_labels, Label(-1))) {
+                                println(concatStrings(["##### executor: var ", v.name, " assign is not valid\n"]));
+                                [MemState(-1, mem_state.vars_val)];
+                            }
+                            else {
+                                value : VarValue = calculateAssignable(val, mem_state);
+                                switch(lookupTree(mem_state.vars_val, v.name)) {
+                                    None(): {
+                                        println(concatStrings(["##### executor: var ", v.name, " is not declared\n"]));
+                                        [MemState(-1, mem_state.vars_val)];
+                                    }
+                                    Some(var_val): {
+                                        if (equalValueTypes(var_val, value)) {
+                                            map(next_labels, \l -> MemState(l.l, setTree(mem_state.vars_val, v.name, value)));
+                                        }
+                                        else {
+                                            println(concatStrings(["##### executor: assignment var ", v.name, " expression ", value2s(value), " is not valid: types do not match\n"]));
+                                            [MemState(-1, mem_state.vars_val)];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        PrintCmd(cmd_l, e, next_labels): {
+                            if (contains(next_labels, Label(-1))) {
+                                println(concatStrings(["##### executor: printing ", assignable2s(e), " causes PANIC\n"]));
+                                [MemState(-1, mem_state.vars_val)];
+                            }
+                            else {
+                                value : VarValue = calculateAssignable(e, mem_state);
+                                println(value2s(value));
+                                map(next_labels, \l -> MemState(l.l, mem_state.vars_val));
+                            }
+                        }
+                        EndCmd(cmd_l): [MemState(end_label, mem_state.vars_val)];
+                        IfCmd(cmd_l, cond, then_labels, else_labels): {
+                            cond_value : VarValue = calculateAssignable(cond.be, mem_state);
+                            switch(cond_value) {
+                                Bool(b): {
+                                    if (b) {
+                                        map(then_labels, \l -> MemState(l.l, mem_state.vars_val));
+                                    }
+                                    else {
+                                        map(else_labels, \l -> MemState(l.l, mem_state.vars_val));
+                                    }
+                                }
+                                default: {
+                                    println(concatStrings(["##### executor: cond ", bool_exp2s(cond.be), " is not valid\n"]));
+                                    [MemState(-1, mem_state.vars_val)];
+                                }
+                            }
+                        }
+                    })
+                });
+            }
+        }
+    }
+}
+
+calculateAssignable(a : Assignable, mem_state : MemState) -> VarValue {
+    switch(a) {
+        Exp(): calculateExp(a, mem_state);
+        BoolExp(be): calculateBoolExp(a, mem_state);
+    }
+}
+
+calculateExp(e : Exp, mem_state : MemState) -> VarValue {
+    switch(e) {
+        CalcExp(e1, op, e2): {
+            value1 : VarValue = calculateAssignable(e1, mem_state);
+            value2 : VarValue = calculateAssignable(e2, mem_state);
+            switch(value1) {
+                Int(i1): {switch(value2) {
+                    Int(i2): {
+                        if (op == "+") {
+                            Int(i1 + i2)
+                        }
+                        else if (op == "-") {
+                            Int(i1 - i2)
+                        }
+                        else if (op == "*") {
+                            Int(i1 * i2)
+                        }
+                        else if (op == "/") {
+                            Int(i1 / i2)
+                        }
+                        else if (op == "%") {
+                            Int(i1 % i2)
+                        }
+                        else {
+                            NotInitialized(INT())
+                        }
+                    }
+                    default: NotInitialized(INT())}
+                }
+                default: NotInitialized(INT())
+            }
+        }
+        Var(name): lookupTreeDef(mem_state.vars_val, name, NotInitialized(BOOL()));
+        Num(n): Int(n);
+        APP(arr, i): {
+            arr_val : VarValue = lookupTreeDef(mem_state.vars_val, arr.name, NotInitialized(ARRAY(INT(), INT())));
+            i_val : VarValue = calculateAssignable(i, mem_state);
+            switch(arr_val) {
+                Array(a, t): {
+                    switch(i_val) {
+                        Int(index): {
+                            if (length(a) > index) {
+                            elementAt(a, index, NotInitialized(ARRAY(INT(), t)));
+                        }
+                        else {
+                            NotInitialized(ARRAY(INT(), t))
+                        }
+                        }
+                        default: NotInitialized(ARRAY(INT(), t))
+                    }
+                }
+                default: NotInitialized(ARRAY(INT(), INT()))
+            }
+        }
+        UPD(arr, i, val): {
+            value : VarValue = calculateAssignable(val, mem_state);
+            arr_val : VarValue = lookupTreeDef(mem_state.vars_val, arr.name, NotInitialized(ARRAY(INT(), INT())));
+            i_val : VarValue = calculateAssignable(i, mem_state);
+            switch(arr_val) {
+                Array(a, t): {
+                    switch(t) {
+                        INT(): switch(value) {
+                            Int(num): {
+                                switch(i_val) {
+                                    Int(index): {
+                                        if (index == length(a)) {
+                                            Array(arrayPush(a, value), t);
+                                        }
+                                        else if (index < length(a)) {
+                                            Array(insertArray(a, index, value), t);
+                                        }
+                                        else {
+                                            NotInitialized(ARRAY(INT(), t));
+                                        }
+                                    }
+                                    default: NotInitialized(ARRAY(INT(), t));
+                                }
+                            }
+                            default: NotInitialized(ARRAY(INT(), t))
+                        }
+                        BOOL(): switch(value) {
+                            Bool(b): {
+                                switch(i_val) {
+                                    Int(index): {
+                                        if (index == length(a)) {
+                                            Array(arrayPush(a, value), t);
+                                        }
+                                        else if (index < length(a)) {
+                                            Array(insertArray(a, index, value), t);
+                                        }
+                                        else {
+                                            NotInitialized(ARRAY(INT(), t))
+                                        }
+                                    }
+                                    default: NotInitialized(ARRAY(INT(), t))
+                                }
+                            }
+                            default: NotInitialized(ARRAY(INT(), t))
+                        }
+                        ARRAY(t_ind, t_val): switch(value) {
+                            Array(a1, t1): {
+                                if (equalTypes(t_val, t1)) {
+                                    switch(i_val) {
+                                        Int(index): {
+                                            if (index == length(a)) {
+                                                Array(arrayPush(a, value), t);
+                                            }
+                                            else if (index < length(a)) {
+                                                Array(insertArray(a, index, value), t);
+                                            }
+                                            else {
+                                                NotInitialized(ARRAY(t_ind, t_val));
+                                            }
+                                        }
+                                        default: NotInitialized(ARRAY(t_ind, t_val));
+                                    }
+                                }
+                                else {
+                                    NotInitialized(ARRAY(t_ind, t_val));
+                                }
+                            }
+                            default: NotInitialized(ARRAY(t_ind, t_val));
+                        }
+                    }
+                }
+                default: NotInitialized(ARRAY(INT(), INT()));
+            }
+        }
+    }
+}
+
+equalTypes(t1 : Type, t2 : Type) -> bool {
+    switch(t1) {
+        INT(): switch(t2) {
+            INT(): true;
+            default: false;
+        }
+        BOOL(): switch(t2) {
+            BOOL(): true;
+            default: false;
+        }
+        ARRAY(t_ind, t_val): switch(t2) {
+            ARRAY(t_i, t_v): equalTypes(t_ind, t_i) && equalTypes(t_val, t_v);
+            default: false;
+        }
+    }
+}
+
+equalValueTypes(v1 : VarValue, v2 : VarValue) -> bool {
+    switch(v1) {
+        Int(i1): switch(v2) {
+            Int(i2): true;
+            default: false;
+        }
+        Bool(b1): switch(v2) {
+            Bool(b2): true;
+            default: false;
+        }
+        Array(a1, t1): switch(v2) {
+            Array(a2, t2): equalTypes(t1, t2);
+            default: false;
+        }
+        NotInitialized(t1): switch(v2) {
+            NotInitialized(t2): equalTypes(t1, t2);
+            Int(i2): switch(t1) {
+                INT(): true;
+                default: false;
+            }
+            Bool(b2): switch(t1) {
+                BOOL(): true;
+                default: false;
+            }
+            default: false;
+        }
+    }
+}
+
+compareValues(v1 : VarValue, v2 : VarValue) -> int {
+    switch(v1) {
+        Int(i1): switch(v2) {
+            Int(i2): i1 - i2;
+            default: -1;
+        }
+        Bool(b1): switch(v2) {
+            Bool(b2): if (b1 == b2) {
+                0
+            }
+            else {
+                1
+            }
+            default: -1;
+        }
+        Array(a1, t1): switch(v2) {
+            Array(a2, t2): length(a1) - length(a2);
+            default: 1;
+        }
+        NotInitialized(t): 1;
+    }
+}
+
+calculateBoolExp(be : BoolExp, mem_state : MemState) -> VarValue {
+    switch(be) {
+        TRUE(): Bool(true);
+        FALSE(): Bool(false);
+        Not(be1): switch(calculateBoolExp(be1, mem_state)) {
+            Bool(b): Bool(!b);
+            default: NotInitialized(BOOL());
+        }
+        CompExp(e1, op, e2): {
+            value1 : VarValue = calculateExp(e1, mem_state);
+            value2 : VarValue = calculateExp(e2, mem_state);
+            if (equalValueTypes(value1, value2)) {
+                cmp_res : int = compareValues(value1, value2);
+                switch(value1) {
+                    Int(i): {
+                        if (op == "==") {
+                            if (cmp_res == 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "!=") {
+                            if (cmp_res != 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "<=") {
+                            if (cmp_res <= 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == ">=") {
+                            if (cmp_res >= 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "<") {
+                            if (cmp_res < 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == ">") {
+                            if (cmp_res > 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else {
+                            NotInitialized(BOOL());
+                        }
+                    }
+                    Bool(b): {
+                        if (op == "==") {
+                            if (cmp_res == 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "!=") {
+                            if (cmp_res != 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else {
+                            NotInitialized(BOOL());
+                        }
+                    }
+                    Array(a, t): {
+                        if (op == "==") {
+                            if (cmp_res == 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "!=") {
+                            if (cmp_res != 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "<=") {
+                            if (cmp_res <= 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == ">=") {
+                            if (cmp_res >= 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == "<") {
+                            if (cmp_res < 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else if (op == ">") {
+                            if (cmp_res > 0) {
+                                Bool(true);
+                            }
+                            else {
+                                Bool(false);
+                            }
+                        }
+                        else {
+                            NotInitialized(BOOL());
+                        }
+                    }
+                    NotInitialized(t): NotInitialized(BOOL());
+                }
+            }
+            else {
+                NotInitialized(BOOL());
+            }
+        }
+        LogicExp(be1, lop, be2): {
+            value1 : VarValue = calculateBoolExp(be1, mem_state);
+            value2 : VarValue = calculateBoolExp(be2, mem_state);
+            switch(value1) {
+                Bool(b1): switch(value2) {
+                    Bool(b2): {
+                        if (lop == "&&") {
+                            Bool(b1 && b2);
+                        }
+                        else if (lop == "||") {
+                            Bool(b1 || b2);
+                        }
+                        else {
+                            NotInitialized(BOOL());
+                        }
+                    }
+                    default: NotInitialized(BOOL());
+                }
+                default: NotInitialized(BOOL());
+            }
+        }
+        VarBoolExp(v, lop, be1): {
+            value1 : VarValue = calculateBoolExp(be1, mem_state);
+            value2 : VarValue = lookupTreeDef(mem_state.vars_val, v.name, NotInitialized(BOOL()));
+            switch(value1) {
+                Bool(b1): switch(value2) {
+                    Bool(b2): {
+                        if (lop == "&&") {
+                            Bool(b1 && b2);
+                        }
+                        else if (lop == "||") {
+                            Bool(b1 || b2);
+                        }
+                        else {
+                            NotInitialized(BOOL());
+                        }
+                    }
+                    default: NotInitialized(BOOL());
+                }
+                default: NotInitialized(BOOL());
+            }
+        }
+    }
+}

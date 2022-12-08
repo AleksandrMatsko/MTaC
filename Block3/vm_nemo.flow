@@ -7,7 +7,7 @@ export {
     Command ::= AssignCmd, IfCmd, PrintCmd, EndCmd;
     AssignCmd : (cmd_label : int, v : Var, val : Assignable, labels : [Label]);
     IfCmd : (cmd_label : int, cond : Test, then_labels : [Label], else_labels : [Label]);
-    PrintCmd : (cmd_label : int, e : Exp, labels : [Label]);
+    PrintCmd : (cmd_label : int, e : Assignable, labels : [Label]);
     EndCmd : (cmd_label : int);
 
     Label : (l : int);
@@ -52,7 +52,7 @@ cmd2s(cmd : Command) -> string {
         IfCmd(label, cond, then_labels, else_labels): {
             concatStrings([i2s(label), ":\t\t", "if ", test2s(cond), " then goto ", labels2s(then_labels), " else goto ", labels2s(else_labels)]);
         }
-        PrintCmd(label, e, labels): concatStrings([i2s(label), ":\t\tprint(", vm_exp2s(e), ") goto ", labels2s(labels)]);
+        PrintCmd(label, e, labels): concatStrings([i2s(label), ":\t\tprint(", vm_assignable2s(e), ") goto ", labels2s(labels)]);
         EndCmd(label): concatStrings([i2s(label), ":\t\t"]);
 
     }
@@ -81,7 +81,7 @@ vm_assignable2s(a : Assignable) -> string {
 vm_exp2s(e : Exp) -> string {
     switch(e) {
         CalcExp(e1, op, e2): concatStrings(["(", vm_exp2s(e1), " ", op, " ", vm_exp2s(e2), ")"]);
-        UPD(arr, i, val): concatStrings(["upd(", vm_exp2s(arr), ", ", vm_exp2s(i), ", ", vm_exp2s(val), ")"]);
+        UPD(arr, i, val): concatStrings(["upd(", vm_exp2s(arr), ", ", vm_exp2s(i), ", ", vm_assignable2s(val), ")"]);
         APP(arr, i): concatStrings(["app(", vm_exp2s(arr), ", ", vm_exp2s(i), ")"]);
         Var(name): name;
         Num(n): i2s(n);

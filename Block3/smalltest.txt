@@ -1,36 +1,44 @@
 VAR a : INT;
 VAR b : INT;
+VAR array : (INT ARRAY OF INT);
+VAR bool_array : (INT ARRAY OF BOOL);
+VAR c : BOOL;
 
 {
     a := 0;
-    b := 0;
+    b := 10;
+    array := UPD(array, a, 0);
     a := (a + 1);
-    IF (a > 0)? THEN {
-        a := (a + 1);
-        PRINT(a)
+    array := UPD(array, a, 1);
+    a := (a + 1);
+    WHILE (a < b)? DO {
+        array := UPD(array, a, (APP(array, (a - 1)) + APP(array, (a - 2))));
+        a := (a + 1)
+    };
+    PRINT(array); /* printing fibonacci */
+    b := (b + 10);
+    (
+        {
+            (a < b)?;
+            array := UPD(array, a, (APP(array, (a - 1)) + APP(array, (a - 2))));
+            a := (a + 1)
+        }
+    )*;
+    (a >= b)?;
+    PRINT(array); /* print more fibonacci */
+    a := 0;
+    b := 10;
+    WHILE (a < b)? DO {
+        ({
+            (a < (b / 2))?;
+            PRINT(b)
+        } U {
+            (a == (b / 2))?;
+            PRINT(0)
+        } U {
+            (a > (b / 2))?;
+            PRINT(a)
+        });
+        a := (a + 1)
     }
-    ELSE {
-        a := (a + 2)
-    };
-    (a == 3)?;
-    (a := (a + 1))*;
-    WHILE (b < 10)? DO {
-        PRINT(b);
-        b := (b + 1)
-    };
-    ({
-      PRINT((a + 1));
-      PRINT((a + 2))  
-    } U {
-        PRINT((a + 3));
-        a := (a + 10);
-        PRINT((a + 4))
-    } U {
-        PRINT((a + 5));
-        a := (a + 11);
-        PRINT((a + 6));
-        PRINT((a + 7));
-        PRINT((a + 8))  
-    })
-
 }
